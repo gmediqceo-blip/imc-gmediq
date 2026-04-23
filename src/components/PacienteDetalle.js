@@ -450,7 +450,7 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
             <Field label="Fecha" value={form.fecha} onChange={set('fecha')} type="date" half />
             <Field label="Médico" value={form.medico_nombre} onChange={set('medico_nombre')} half />
           </div>
-          <SectionTitle>"Medidas" />
+          <SectionTitle>Medidas</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
             <Field label="Peso (kg)" value={form.peso} onChange={set('peso')} type="number" half />
             <Field label="IMC" value={form.bmi} onChange={set('bmi')} type="number" half />
@@ -459,7 +459,7 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
             <Field label="PA diastólica" value={form.pa_diastolica} onChange={set('pa_diastolica')} type="number" half hint="Normal: <80" />
             <Field label="FC (bpm)" value={form.fc} onChange={set('fc')} type="number" half />
           </div>
-          <SectionTitle>"Laboratorios" />
+          <SectionTitle>Laboratorios</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
             <Field label="Glucosa (mg/dL)" value={form.glucosa} onChange={set('glucosa')} type="number" half hint="Normal: 70–100" />
             <Field label="HbA1c (%)" value={form.hba1c} onChange={set('hba1c')} type="number" half hint="Normal: <5.7%" />
@@ -470,13 +470,13 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
             <Field label="Insulina (µU/mL)" value={form.insulina} onChange={set('insulina')} type="number" half />
             <Field label="TSH (mU/L)" value={form.tsh} onChange={set('tsh')} type="number" half />
           </div>
-          <SectionTitle>"Medicamentos" />
+          <SectionTitle>Medicamentos</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
             <Field label="GLP-1 (nombre/dosis)" value={form.glp1} onChange={set('glp1')} half />
             <Field label="Metformina (dosis)" value={form.metformina} onChange={set('metformina')} half />
           </div>
           <TextArea label="Otros medicamentos" value={form.otros_medicamentos} onChange={set('otros_medicamentos')} />
-          <SectionTitle>"Diagnóstico y Plan" />
+          <SectionTitle>Diagnóstico y Plan</SectionTitle>
           <TextArea label="Diagnóstico médico" value={form.diagnostico} onChange={set('diagnostico')} />
           <TextArea label="Plan de tratamiento" value={form.plan_tratamiento} onChange={set('plan_tratamiento')} />
           <Field label="Próxima visita" value={form.proxima_visita} onChange={set('proxima_visita')} type="date" half />
