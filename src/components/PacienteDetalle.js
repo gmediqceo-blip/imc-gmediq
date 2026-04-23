@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import PlanEjercicio from './PlanEjercicio';
 import { BotonesDocumentos } from './Documentos';
+import { Field, TextArea, SectionTitle, FieldRow } from './FormFields';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -292,27 +293,7 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
     setGuardando(false);
   };
 
-  const F = ({ label, value, onChange, type = 'text', opts, half, hint, readOnly }) => (
-    <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
-      {opts ? (
-        <select value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
-          {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-        </select>
-      ) : (
-        <input type={type} value={value} onChange={e => onChange && onChange(e.target.value)} readOnly={readOnly}
-          style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', background: readOnly ? B.grayLt : 'white', boxSizing: 'border-box' }} />
-      )}
-      {hint && <p style={{ fontSize: 9, color: B.gray, margin: '3px 0 0' }}>{hint}</p>}
-    </div>
-  );
-  const TA = ({ label, value, onChange, rows = 2 }) => (
-    <div style={{ flex: '0 0 100%', marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
-      <textarea value={value} onChange={e => onChange(e.target.value)} rows={rows} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-    </div>
-  );
-  const Sec = ({ children }) => <div style={{ borderLeft: `4px solid ${B.blue}`, paddingLeft: 10, marginBottom: 12, marginTop: 18 }}><p style={{ fontWeight: 800, fontSize: 11, color: B.navy, textTransform: 'uppercase', letterSpacing: 1.5, margin: 0 }}>{children}</p></div>;
+  // Using shared Field, TextArea, SectionTitle from FormFields.js
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
@@ -328,44 +309,44 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
         </div>
         <div style={{ padding: '20px 28px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Fecha" value={form.fecha} onChange={set('fecha')} type="date" half />
-            <F label="Terapeuta" value={form.terapeuta_nombre} onChange={set('terapeuta_nombre')} half />
+            <Field label="Fecha" value={form.fecha} onChange={set('fecha')} type="date" half />
+            <Field label="Terapeuta" value={form.terapeuta_nombre} onChange={set('terapeuta_nombre')} half />
           </div>
-          <Sec>Signos Vitales en Reposo</Sec>
+          <SectionTitle>Signos Vitales en Reposo</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="FC reposo (bpm)" value={form.fc_reposo} onChange={set('fc_reposo')} type="number" half hint="Normal: 60–100" />
-            <F label="SpO2 (%)" value={form.spo2} onChange={set('spo2')} type="number" half hint="Normal: ≥95%" />
-            <F label="PA sistólica (mmHg)" value={form.pa_sistolica} onChange={set('pa_sistolica')} type="number" half hint="Normal: <120" />
-            <F label="PA diastólica (mmHg)" value={form.pa_diastolica} onChange={set('pa_diastolica')} type="number" half hint="Normal: <80" />
+            <Field label="FC reposo (bpm)" value={form.fc_reposo} onChange={set('fc_reposo')} type="number" half hint="Normal: 60–100" />
+            <Field label="SpO2 (%)" value={form.spo2} onChange={set('spo2')} type="number" half hint="Normal: ≥95%" />
+            <Field label="PA sistólica (mmHg)" value={form.pa_sistolica} onChange={set('pa_sistolica')} type="number" half hint="Normal: <120" />
+            <Field label="PA diastólica (mmHg)" value={form.pa_diastolica} onChange={set('pa_diastolica')} type="number" half hint="Normal: <80" />
           </div>
-          <Sec>Composición Corporal — InBody 270S</Sec>
+          <SectionTitle>Composición Corporal — InBody 270S</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Peso (kg)" value={form.peso} onChange={set('peso')} type="number" half />
-            <F label="Talla (cm)" value={form.talla} onChange={set('talla')} type="number" half />
-            <F label="IMC (auto)" value={bmi} readOnly half hint={bmi ? `Calculado: ${bmi}` : 'Ingresa peso y talla'} />
-            <F label="% Grasa corporal" value={form.pct_grasa} onChange={set('pct_grasa')} type="number" half hint="H: 10–20% · M: 18–28%" />
-            <F label="Masa muscular (kg)" value={form.masa_muscular} onChange={set('masa_muscular')} type="number" half />
-            <F label="Masa grasa (kg)" value={form.masa_grasa} onChange={set('masa_grasa')} type="number" half />
-            <F label="Cintura (cm)" value={form.cintura} onChange={set('cintura')} type="number" half hint="Riesgo H>94 · M>80" />
-            <F label="Cadera (cm)" value={form.cadera} onChange={set('cadera')} type="number" half />
+            <Field label="Peso (kg)" value={form.peso} onChange={set('peso')} type="number" half />
+            <Field label="Talla (cm)" value={form.talla} onChange={set('talla')} type="number" half />
+            <Field label="IMC (auto)" value={bmi} readOnly half hint={bmi ? `Calculado: ${bmi}` : 'Ingresa peso y talla'} />
+            <Field label="% Grasa corporal" value={form.pct_grasa} onChange={set('pct_grasa')} type="number" half hint="H: 10–20% · M: 18–28%" />
+            <Field label="Masa muscular (kg)" value={form.masa_muscular} onChange={set('masa_muscular')} type="number" half />
+            <Field label="Masa grasa (kg)" value={form.masa_grasa} onChange={set('masa_grasa')} type="number" half />
+            <Field label="Cintura (cm)" value={form.cintura} onChange={set('cintura')} type="number" half hint="Riesgo H>94 · M>80" />
+            <Field label="Cadera (cm)" value={form.cadera} onChange={set('cadera')} type="number" half />
           </div>
-          <Sec>Dinamometría y Fuerza</Sec>
+          <SectionTitle>Dinamometría y Fuerza</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Dinamometría derecha (kg)" value={form.dina_d} onChange={set('dina_d')} type="number" half hint="H: 35–55 · M: 20–35" />
-            <F label="Dinamometría izquierda (kg)" value={form.dina_i} onChange={set('dina_i')} type="number" half />
-            <F label="1RM tren superior (kg)" value={form.orm_superior} onChange={set('orm_superior')} type="number" half />
-            <F label="1RM tren inferior (kg)" value={form.orm_inferior} onChange={set('orm_inferior')} type="number" half />
+            <Field label="Dinamometría derecha (kg)" value={form.dina_d} onChange={set('dina_d')} type="number" half hint="H: 35–55 · M: 20–35" />
+            <Field label="Dinamometría izquierda (kg)" value={form.dina_i} onChange={set('dina_i')} type="number" half />
+            <Field label="1RM tren superior (kg)" value={form.orm_superior} onChange={set('orm_superior')} type="number" half />
+            <Field label="1RM tren inferior (kg)" value={form.orm_inferior} onChange={set('orm_inferior')} type="number" half />
           </div>
-          <Sec>Test Sit to Stand (1 minuto)</Sec>
+          <SectionTitle>Test Sit to Stand (1 minuto)</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Repeticiones" value={form.sit_stand} onChange={set('sit_stand')} type="number" half hint="≥20 normal · <14 bajo" />
-            <F label="Borg post-test (0–10)" value={form.borg} onChange={set('borg')} type="number" half />
-            <F label="FC pre-test (bpm)" value={form.fc_pre} onChange={set('fc_pre')} type="number" half />
-            <F label="FC post-test (bpm)" value={form.fc_post} onChange={set('fc_post')} type="number" half />
-            <F label="SpO2 pre (%)" value={form.spo2_pre} onChange={set('spo2_pre')} type="number" half />
-            <F label="SpO2 post (%)" value={form.spo2_post} onChange={set('spo2_post')} type="number" half hint="No debe bajar >4%" />
+            <Field label="Repeticiones" value={form.sit_stand} onChange={set('sit_stand')} type="number" half hint="≥20 normal · <14 bajo" />
+            <Field label="Borg post-test (0–10)" value={form.borg} onChange={set('borg')} type="number" half />
+            <Field label="FC pre-test (bpm)" value={form.fc_pre} onChange={set('fc_pre')} type="number" half />
+            <Field label="FC post-test (bpm)" value={form.fc_post} onChange={set('fc_post')} type="number" half />
+            <Field label="SpO2 pre (%)" value={form.spo2_pre} onChange={set('spo2_pre')} type="number" half />
+            <Field label="SpO2 post (%)" value={form.spo2_post} onChange={set('spo2_post')} type="number" half hint="No debe bajar >4%" />
           </div>
-          <Sec>VO2max y Zonas Cardíacas</Sec>
+          <SectionTitle>VO2max y Zonas Cardíacas</SectionTitle>
           {form.fc_reposo && (
             <div style={{ background: '#E8F4FD', borderRadius: 10, padding: '12px 16px', marginBottom: 12, display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
               {[['FC máx teórica', `${fcmax} bpm`], ['FC de reserva', `${reserve || '—'} bpm`], ['Zona 2 auto', `${z2.lo || '—'}–${z2.hi || '—'} bpm`]].map(([l, v]) => (
@@ -374,19 +355,19 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
             </div>
           )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="VO2max (ml/kg/min)" value={form.vo2max} onChange={set('vo2max')} type="number" half />
-            <F label="Clasificación VO2max" value={form.vo2max_clasificacion} onChange={set('vo2max_clasificacion')} opts={[{ v: '', l: '—' }, { v: 'muy_pobre', l: 'Muy pobre' }, { v: 'pobre', l: 'Pobre' }, { v: 'regular', l: 'Regular' }, { v: 'bueno', l: 'Bueno' }, { v: 'excelente', l: 'Excelente' }]} half />
-            <F label="Zona 1 — desde (bpm)" value={form.zona1_lo || String(z1.lo || '')} onChange={set('zona1_lo')} type="number" half />
-            <F label="Zona 1 — hasta (bpm)" value={form.zona1_hi || String(z1.hi || '')} onChange={set('zona1_hi')} type="number" half />
-            <F label="Zona 2 — desde (bpm)" value={form.zona2_lo || String(z2.lo || '')} onChange={set('zona2_lo')} type="number" half />
-            <F label="Zona 2 — hasta (bpm)" value={form.zona2_hi || String(z2.hi || '')} onChange={set('zona2_hi')} type="number" half />
-            <F label="Zona 3 — desde (bpm)" value={form.zona3_lo || String(z3.lo || '')} onChange={set('zona3_lo')} type="number" half />
-            <F label="Zona 3 — hasta (bpm)" value={form.zona3_hi || String(z3.hi || '')} onChange={set('zona3_hi')} type="number" half />
+            <Field label="VO2max (ml/kg/min)" value={form.vo2max} onChange={set('vo2max')} type="number" half />
+            <Field label="Clasificación VO2max" value={form.vo2max_clasificacion} onChange={set('vo2max_clasificacion')} opts={[{ v: '', l: '—' }, { v: 'muy_pobre', l: 'Muy pobre' }, { v: 'pobre', l: 'Pobre' }, { v: 'regular', l: 'Regular' }, { v: 'bueno', l: 'Bueno' }, { v: 'excelente', l: 'Excelente' }]} half />
+            <Field label="Zona 1 — desde (bpm)" value={form.zona1_lo || String(z1.lo || '')} onChange={set('zona1_lo')} type="number" half />
+            <Field label="Zona 1 — hasta (bpm)" value={form.zona1_hi || String(z1.hi || '')} onChange={set('zona1_hi')} type="number" half />
+            <Field label="Zona 2 — desde (bpm)" value={form.zona2_lo || String(z2.lo || '')} onChange={set('zona2_lo')} type="number" half />
+            <Field label="Zona 2 — hasta (bpm)" value={form.zona2_hi || String(z2.hi || '')} onChange={set('zona2_hi')} type="number" half />
+            <Field label="Zona 3 — desde (bpm)" value={form.zona3_lo || String(z3.lo || '')} onChange={set('zona3_lo')} type="number" half />
+            <Field label="Zona 3 — hasta (bpm)" value={form.zona3_hi || String(z3.hi || '')} onChange={set('zona3_hi')} type="number" half />
           </div>
-          <Sec>Diagnóstico y Aptitud</Sec>
-          <TA label="Diagnóstico fisioterapéutico" value={form.diagnostico} onChange={set('diagnostico')} rows={3} />
-          <TA label="Fortalezas del paciente" value={form.fortalezas} onChange={set('fortalezas')} />
-          <TA label="Limitantes y factores de riesgo" value={form.limitantes} onChange={set('limitantes')} />
+          <SectionTitle>Diagnóstico y Aptitud</SectionTitle>
+          <TextArea label="Diagnóstico fisioterapéutico" value={form.diagnostico} onChange={set('diagnostico')} rows={3} />
+          <TextArea label="Fortalezas del paciente" value={form.fortalezas} onChange={set('fortalezas')} />
+          <TextArea label="Limitantes y factores de riesgo" value={form.limitantes} onChange={set('limitantes')} />
           <div style={{ flex: '0 0 100%', marginBottom: 12 }}>
             <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Aptitud</label>
             <select value={form.aptitud} onChange={e => set('aptitud')(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none' }}>
@@ -395,7 +376,7 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
               <option value="no_apto">✗ No apto — requiere evaluación médica</option>
             </select>
           </div>
-          <TA label="Notas adicionales" value={form.notas} onChange={set('notas')} />
+          <TextArea label="Notas adicionales" value={form.notas} onChange={set('notas')} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
             <button onClick={onClose} style={{ padding: '9px 20px', background: 'transparent', color: B.gray, border: `2px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
             <button onClick={guardar} disabled={guardando} style={{ padding: '9px 22px', background: guardando ? '#9AA5B1' : B.blue, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: guardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
@@ -453,20 +434,7 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
     if (!error) onGuardado();
     setGuardando(false);
   };
-  const F = ({ label, value, onChange, type = 'text', half, hint }) => (
-    <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-      {hint && <p style={{ fontSize: 9, color: B.gray, margin: '2px 0 0' }}>{hint}</p>}
-    </div>
-  );
-  const TA = ({ label, value, onChange }) => (
-    <div style={{ flex: '0 0 100%', marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
-      <textarea value={value} onChange={e => onChange(e.target.value)} rows={3} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-    </div>
-  );
-  const Sec = ({ c }) => <div style={{ borderLeft: `4px solid ${B.teal}`, paddingLeft: 10, marginBottom: 12, marginTop: 18 }}><p style={{ fontWeight: 800, fontSize: 11, color: B.navy, textTransform: 'uppercase', letterSpacing: 1.5, margin: 0 }}>{c}</p></div>;
+  // Using shared Field, TextArea, SectionTitle from FormFields.js
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
       <div style={{ background: B.white, borderRadius: 16, width: '100%', maxWidth: 700, maxHeight: '92vh', overflow: 'auto' }}>
@@ -479,40 +447,40 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
         </div>
         <div style={{ padding: '20px 28px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Fecha" value={form.fecha} onChange={set('fecha')} type="date" half />
-            <F label="Médico" value={form.medico_nombre} onChange={set('medico_nombre')} half />
+            <Field label="Fecha" value={form.fecha} onChange={set('fecha')} type="date" half />
+            <Field label="Médico" value={form.medico_nombre} onChange={set('medico_nombre')} half />
           </div>
-          <Sec c="Medidas" />
+          <SectionTitle>"Medidas" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Peso (kg)" value={form.peso} onChange={set('peso')} type="number" half />
-            <F label="IMC" value={form.bmi} onChange={set('bmi')} type="number" half />
-            <F label="Cintura (cm)" value={form.cintura} onChange={set('cintura')} type="number" half />
-            <F label="PA sistólica" value={form.pa_sistolica} onChange={set('pa_sistolica')} type="number" half hint="Normal: <120" />
-            <F label="PA diastólica" value={form.pa_diastolica} onChange={set('pa_diastolica')} type="number" half hint="Normal: <80" />
-            <F label="FC (bpm)" value={form.fc} onChange={set('fc')} type="number" half />
+            <Field label="Peso (kg)" value={form.peso} onChange={set('peso')} type="number" half />
+            <Field label="IMC" value={form.bmi} onChange={set('bmi')} type="number" half />
+            <Field label="Cintura (cm)" value={form.cintura} onChange={set('cintura')} type="number" half />
+            <Field label="PA sistólica" value={form.pa_sistolica} onChange={set('pa_sistolica')} type="number" half hint="Normal: <120" />
+            <Field label="PA diastólica" value={form.pa_diastolica} onChange={set('pa_diastolica')} type="number" half hint="Normal: <80" />
+            <Field label="FC (bpm)" value={form.fc} onChange={set('fc')} type="number" half />
           </div>
-          <Sec c="Laboratorios" />
+          <SectionTitle>"Laboratorios" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="Glucosa (mg/dL)" value={form.glucosa} onChange={set('glucosa')} type="number" half hint="Normal: 70–100" />
-            <F label="HbA1c (%)" value={form.hba1c} onChange={set('hba1c')} type="number" half hint="Normal: <5.7%" />
-            <F label="Colesterol total" value={form.colesterol_total} onChange={set('colesterol_total')} type="number" half hint="Normal: <200" />
-            <F label="LDL" value={form.colesterol_ldl} onChange={set('colesterol_ldl')} type="number" half hint="Normal: <100" />
-            <F label="HDL" value={form.colesterol_hdl} onChange={set('colesterol_hdl')} type="number" half hint="H:>40 M:>50" />
-            <F label="Triglicéridos" value={form.trigliceridos} onChange={set('trigliceridos')} type="number" half hint="Normal: <150" />
-            <F label="Insulina (µU/mL)" value={form.insulina} onChange={set('insulina')} type="number" half />
-            <F label="TSH (mU/L)" value={form.tsh} onChange={set('tsh')} type="number" half />
+            <Field label="Glucosa (mg/dL)" value={form.glucosa} onChange={set('glucosa')} type="number" half hint="Normal: 70–100" />
+            <Field label="HbA1c (%)" value={form.hba1c} onChange={set('hba1c')} type="number" half hint="Normal: <5.7%" />
+            <Field label="Colesterol total" value={form.colesterol_total} onChange={set('colesterol_total')} type="number" half hint="Normal: <200" />
+            <Field label="LDL" value={form.colesterol_ldl} onChange={set('colesterol_ldl')} type="number" half hint="Normal: <100" />
+            <Field label="HDL" value={form.colesterol_hdl} onChange={set('colesterol_hdl')} type="number" half hint="H:>40 M:>50" />
+            <Field label="Triglicéridos" value={form.trigliceridos} onChange={set('trigliceridos')} type="number" half hint="Normal: <150" />
+            <Field label="Insulina (µU/mL)" value={form.insulina} onChange={set('insulina')} type="number" half />
+            <Field label="TSH (mU/L)" value={form.tsh} onChange={set('tsh')} type="number" half />
           </div>
-          <Sec c="Medicamentos" />
+          <SectionTitle>"Medicamentos" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <F label="GLP-1 (nombre/dosis)" value={form.glp1} onChange={set('glp1')} half />
-            <F label="Metformina (dosis)" value={form.metformina} onChange={set('metformina')} half />
+            <Field label="GLP-1 (nombre/dosis)" value={form.glp1} onChange={set('glp1')} half />
+            <Field label="Metformina (dosis)" value={form.metformina} onChange={set('metformina')} half />
           </div>
-          <TA label="Otros medicamentos" value={form.otros_medicamentos} onChange={set('otros_medicamentos')} />
-          <Sec c="Diagnóstico y Plan" />
-          <TA label="Diagnóstico médico" value={form.diagnostico} onChange={set('diagnostico')} />
-          <TA label="Plan de tratamiento" value={form.plan_tratamiento} onChange={set('plan_tratamiento')} />
-          <F label="Próxima visita" value={form.proxima_visita} onChange={set('proxima_visita')} type="date" half />
-          <TA label="Notas" value={form.notas} onChange={set('notas')} />
+          <TextArea label="Otros medicamentos" value={form.otros_medicamentos} onChange={set('otros_medicamentos')} />
+          <SectionTitle>"Diagnóstico y Plan" />
+          <TextArea label="Diagnóstico médico" value={form.diagnostico} onChange={set('diagnostico')} />
+          <TextArea label="Plan de tratamiento" value={form.plan_tratamiento} onChange={set('plan_tratamiento')} />
+          <Field label="Próxima visita" value={form.proxima_visita} onChange={set('proxima_visita')} type="date" half />
+          <TextArea label="Notas" value={form.notas} onChange={set('notas')} />
         </div>
       </div>
     </div>
