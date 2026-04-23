@@ -4,6 +4,7 @@ import PlanEjercicio from './PlanEjercicio';
 import { BotonesDocumentos } from './Documentos';
 import { Field, TextArea, SectionTitle, FieldRow } from './FormFields';
 import BancoArchivos from './BancoArchivos';
+import ConsultaMedica from './ConsultaMedica';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -164,7 +165,12 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
         {/* MÉDICO */}
         {tab === 'medico' && (
-          <TabMedico paciente={paciente} consultas={consultasMed} onActualizar={fetchTodo} usuario={usuario} />
+          <ConsultaMedica
+            paciente={paciente}
+            consultas={consultasMed}
+            onActualizar={fetchTodo}
+            usuario={usuario}
+          />
         )}
 
         {/* NUTRICIÓN */}
