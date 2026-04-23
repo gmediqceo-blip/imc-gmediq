@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import PlanEjercicio from './PlanEjercicio';
+import { BotonesDocumentos } from './Documentos';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -16,6 +18,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   const [consultasNut, setConsultasNut] = useState([]);
   const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [ejercicios, setEjercicios] = useState([]);
 
   const age = calcAge(paciente.fecha_nacimiento);
 
@@ -24,16 +27,18 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   }, [paciente.id]);
 
   const fetchTodo = async () => {
-    const [v, m, n, pl] = await Promise.all([
+    const [v, m, n, pl, ej] = await Promise.all([
       supabase.from('valoraciones').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('consultas_medicas').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('consultas_nutricion').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('planes_ejercicio').select('*, plan_ejercicios(*)').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
+      supabase.from('ejercicios').select('*').eq('activo', true).order('categoria').order('nombre'),
     ]);
     setValoraciones(v.data || []);
     setConsultasMed(m.data || []);
     setConsultasNut(n.data || []);
     setPlanes(pl.data || []);
+    setEjercicios(ej.data || []);
     setLoading(false);
   };
 
@@ -157,7 +162,13 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
         {/* EJERCICIO */}
         {tab === 'ejercicio' && (
-          <TabEjercicio paciente={paciente} planes={planes} valoraciones={valoraciones} onActualizar={fetchTodo} usuario={usuario} />
+          <PlanEjercicio
+            paciente={paciente}
+            planes={planes}
+            valoraciones={valoraciones}
+            onActualizar={fetchTodo}
+            usuario={usuario}
+          />
         )}
       </div>
     </div>
@@ -523,32 +534,4 @@ function TabNutricion({ paciente, consultas, onActualizar, usuario }) {
   );
 }
 
-// ── TAB EJERCICIO ─────────────────────────────────────────────────────────────
-function TabEjercicio({ paciente, planes, valoraciones, onActualizar, usuario }) {
-  const [toast, setToast] = useState(null);
-  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <p style={{ fontWeight: 700, fontSize: 13, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>{planes.length} plan{planes.length !== 1 ? 'es' : ''}</p>
-        {valoraciones.length > 0
-          ? <button onClick={() => showToast('Armador de planes — próximamente', B.blue)} style={{ padding: '9px 20px', background: B.navy, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>+ Nuevo plan</button>
-          : <p style={{ fontSize: 12, color: B.orange }}>⚠ Primero registra una valoración</p>
-        }
-      </div>
-      {planes.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
-          <p style={{ fontSize: 36, marginBottom: 10 }}>🏋️</p>
-          <p style={{ color: B.gray }}>No hay planes de ejercicio registrados.</p>
-        </div>
-      )}
-      {planes.map(pl => (
-        <div key={pl.id} style={{ background: B.white, borderRadius: 10, border: `1.5px solid ${B.grayMd}`, padding: '14px 16px', marginBottom: 10, borderLeft: `4px solid ${B.navy}` }}>
-          <p style={{ fontWeight: 700, fontSize: 14, color: B.navy, margin: '0 0 3px' }}>{fmtDate(pl.fecha)} · Fase {pl.fase}</p>
-          <p style={{ fontSize: 12, color: B.gray, margin: 0 }}>{pl.terapeuta_nombre || '—'} · {pl.entorno === 'gym' ? '🏋️ Gimnasio' : '🏠 Casa'} · {pl.plan_ejercicios?.length || 0} ejercicios</p>
-        </div>
-      ))}
-      {toast && <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: toast.color, color: 'white', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
-    </div>
-  );
-}
+
