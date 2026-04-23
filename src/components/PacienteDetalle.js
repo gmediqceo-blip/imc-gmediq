@@ -88,6 +88,15 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
         {/* RESUMEN */}
         {tab === 'resumen' && (
           <div>
+            {/* Documentos */}
+            <BotonesDocumentos
+              paciente={paciente}
+              valoracion={valoraciones[0] || null}
+              plan={planes[0] || null}
+              planEjercicios={planes[0]?.plan_ejercicios || []}
+              ejercicios={ejercicios}
+            />
+
             {/* Stats rápidos */}
             {lastV && (
               <>
