@@ -320,6 +320,24 @@ function ConsultaCard({ consulta: c, paciente }) {
   );
 }
 
+// ─── FORM COMPONENTS — definidos FUERA del modal para evitar pérdida de foco ──
+const CInput = ({ label, value, onChange, type = 'text', half, hint, placeholder }) => (
+  <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
+    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
+    <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #DDE3EA', borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+    {hint && <p style={{ fontSize: 9, color: '#6E6E70', margin: '3px 0 0' }}>{hint}</p>}
+  </div>
+);
+
+const CTextArea = ({ label, value, onChange, rows = 4, placeholder }) => (
+  <div style={{ marginBottom: 14 }}>
+    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
+    <textarea value={value} onChange={e => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+      style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #DDE3EA', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+  </div>
+);
+
 // ─── MODAL NUEVA CONSULTA ─────────────────────────────────────────────────────
 function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   // Datos generales
@@ -419,23 +437,6 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
     setGuardando(false);
   };
 
-  const Input = ({ label, value, onChange, type = 'text', half, hint, placeholder }) => (
-    <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-      {hint && <p style={{ fontSize: 9, color: B.gray, margin: '3px 0 0' }}>{hint}</p>}
-    </div>
-  );
-
-  const TA = ({ label, value, onChange, rows = 4, placeholder }) => (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
-      <textarea value={value} onChange={e => onChange(e.target.value)} rows={rows} placeholder={placeholder}
-        style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-    </div>
-  );
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.82)', display: 'flex', alignItems: 'stretch', zIndex: 1000 }}>
       <div style={{ background: B.grayLt, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -497,9 +498,9 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
           {/* MOTIVO Y EVOLUCIÓN */}
           {seccion === 'motivo' && (
             <div>
-              <TA label="Motivo de consulta" value={motivoConsulta} onChange={setMotivoConsulta} rows={3}
+              <CTextArea label="Motivo de consulta" value={motivoConsulta} onChange={setMotivoConsulta} rows={3}
                 placeholder="Describa el motivo principal por el que consulta el paciente..." />
-              <TA label="Evolución" value={evolucion} onChange={setEvolucion} rows={4}
+              <CTextArea label="Evolución" value={evolucion} onChange={setEvolucion} rows={4}
                 placeholder="Evolución desde la última consulta, respuesta al tratamiento, cambios en síntomas..." />
             </div>
           )}
@@ -509,14 +510,14 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
             <div>
               <p style={{ fontWeight: 700, fontSize: 12, color: B.navy, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 14px', borderLeft: `4px solid ${B.teal}`, paddingLeft: 10 }}>Signos Vitales</p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-                <Input label="Peso (kg)" value={peso} onChange={setPeso} type="number" half />
-                <Input label="Talla (cm)" value={talla} onChange={setTalla} type="number" half />
-                <Input label="PA sistólica (mmHg)" value={paSis} onChange={setPaSis} type="number" half hint="Normal: <120" />
-                <Input label="PA diastólica (mmHg)" value={paDia} onChange={setPaDia} type="number" half hint="Normal: <80" />
-                <Input label="FC (lpm)" value={fc} onChange={setFc} type="number" half hint="Normal: 60–100" />
-                <Input label="FR (rpm)" value={fr} onChange={setFr} type="number" half hint="Normal: 12–20" />
-                <Input label="SpO2 (%)" value={spo2} onChange={setSpo2} type="number" half hint="Normal: ≥95%" />
-                <Input label="Temperatura (°C)" value={temperatura} onChange={setTemperatura} type="number" half hint="Normal: 36–37.5" />
+                <CInput label="Peso (kg)" value={peso} onChange={setPeso} type="number" half />
+                <CInput label="Talla (cm)" value={talla} onChange={setTalla} type="number" half />
+                <CInput label="PA sistólica (mmHg)" value={paSis} onChange={setPaSis} type="number" half hint="Normal: <120" />
+                <CInput label="PA diastólica (mmHg)" value={paDia} onChange={setPaDia} type="number" half hint="Normal: <80" />
+                <CInput label="FC (lpm)" value={fc} onChange={setFc} type="number" half hint="Normal: 60–100" />
+                <CInput label="FR (rpm)" value={fr} onChange={setFr} type="number" half hint="Normal: 12–20" />
+                <CInput label="SpO2 (%)" value={spo2} onChange={setSpo2} type="number" half hint="Normal: ≥95%" />
+                <CInput label="Temperatura (°C)" value={temperatura} onChange={setTemperatura} type="number" half hint="Normal: 36–37.5" />
               </div>
               {peso && talla && (
                 <div style={{ background: B.blueLt || '#E8F4FD', borderRadius: 8, padding: '10px 14px', marginBottom: 14 }}>
@@ -528,7 +529,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
               <div style={{ borderLeft: `4px solid ${B.teal}`, paddingLeft: 10, marginBottom: 14, marginTop: 20 }}>
                 <p style={{ fontWeight: 700, fontSize: 12, color: B.navy, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Examen Físico</p>
               </div>
-              <TA label="Hallazgos del examen físico" value={examenFisico} onChange={setExamenFisico} rows={5}
+              <CTextArea label="Hallazgos del examen físico" value={examenFisico} onChange={setExamenFisico} rows={5}
                 placeholder="Descripción del examen físico: general, cardiopulmonar, abdominal, extremidades, piel y faneras, neurológico..." />
             </div>
           )}
@@ -596,11 +597,11 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
               <div style={{ background: B.white, borderRadius: 10, border: `1.5px solid ${B.grayMd}`, padding: '16px 18px', marginBottom: 16 }}>
                 <p style={{ fontWeight: 600, fontSize: 12, color: B.teal, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: 1 }}>+ Agregar medicamento</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-                  <Input label="Nombre del medicamento *" value={nuevoMed.nombre} onChange={v => setNuevoMed(p => ({ ...p, nombre: v }))} placeholder="Ej: Metformina 850mg" />
-                  <Input label="Dosis" value={nuevoMed.dosis} onChange={v => setNuevoMed(p => ({ ...p, dosis: v }))} placeholder="Ej: 1 tableta" half />
-                  <Input label="Frecuencia" value={nuevoMed.frecuencia} onChange={v => setNuevoMed(p => ({ ...p, frecuencia: v }))} placeholder="Ej: Cada 8 horas" half />
-                  <Input label="Duración" value={nuevoMed.duracion} onChange={v => setNuevoMed(p => ({ ...p, duracion: v }))} placeholder="Ej: 30 días" half />
-                  <Input label="Indicaciones adicionales" value={nuevoMed.indicaciones} onChange={v => setNuevoMed(p => ({ ...p, indicaciones: v }))} placeholder="Ej: Tomar con alimentos" half />
+                  <CInput label="Nombre del medicamento *" value={nuevoMed.nombre} onChange={v => setNuevoMed(p => ({ ...p, nombre: v }))} placeholder="Ej: Metformina 850mg" />
+                  <CInput label="Dosis" value={nuevoMed.dosis} onChange={v => setNuevoMed(p => ({ ...p, dosis: v }))} placeholder="Ej: 1 tableta" half />
+                  <CInput label="Frecuencia" value={nuevoMed.frecuencia} onChange={v => setNuevoMed(p => ({ ...p, frecuencia: v }))} placeholder="Ej: Cada 8 horas" half />
+                  <CInput label="Duración" value={nuevoMed.duracion} onChange={v => setNuevoMed(p => ({ ...p, duracion: v }))} placeholder="Ej: 30 días" half />
+                  <CInput label="Indicaciones adicionales" value={nuevoMed.indicaciones} onChange={v => setNuevoMed(p => ({ ...p, indicaciones: v }))} placeholder="Ej: Tomar con alimentos" half />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button onClick={addMedicamento}
@@ -682,7 +683,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
           {/* INDICACIONES */}
           {seccion === 'indicaciones' && (
             <div>
-              <TA label="Indicaciones y recomendaciones" value={indicaciones} onChange={setIndicaciones} rows={6}
+              <CTextArea label="Indicaciones y recomendaciones" value={indicaciones} onChange={setIndicaciones} rows={6}
                 placeholder="Indicaciones para el paciente: dieta, actividad física, cuidados, señales de alarma, próximos pasos..." />
               <div style={{ marginTop: 14 }}>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Próxima cita</label>
