@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import PlanEjercicio from './PlanEjercicio';
 import { BotonesDocumentos } from './Documentos';
 import { Field, TextArea, SectionTitle, FieldRow } from './FormFields';
+import BancoArchivos from './BancoArchivos';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -51,6 +52,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
     { key: 'medico', label: '🩺 Médico' },
     { key: 'nutricion', label: '🥗 Nutrición' },
     { key: 'ejercicio', label: '🏋️ Plan ejercicio' },
+    { key: 'archivos', label: '📁 Archivos' },
   ];
 
   return (
@@ -177,6 +179,14 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
             planes={planes}
             valoraciones={valoraciones}
             onActualizar={fetchTodo}
+            usuario={usuario}
+          />
+        )}
+
+        {/* ARCHIVOS */}
+        {tab === 'archivos' && (
+          <BancoArchivos
+            paciente={paciente}
             usuario={usuario}
           />
         )}
