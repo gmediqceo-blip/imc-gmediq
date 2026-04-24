@@ -4,7 +4,7 @@ import PlanEjercicio from './PlanEjercicio';
 import { BotonesDocumentos } from './Documentos';
 import { Field, TextArea, SectionTitle, FieldRow } from './FormFields';
 import BancoArchivos from './BancoArchivos';
-import ConsultaMedica from './ConsultaMedica';
+import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -49,6 +49,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
   const tabs = [
     { key: 'resumen', label: '📋 Resumen' },
+    { key: 'historial', label: '📅 Historial' },
     { key: 'fisioterapia', label: '🏃 Fisioterapia' },
     { key: 'medico', label: '🩺 Médico' },
     { key: 'nutricion', label: '🥗 Nutrición' },
@@ -156,6 +157,16 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
               ))}
             </div>
           </div>
+        )}
+
+        {/* HISTORIAL */}
+        {tab === 'historial' && (
+          <HistorialUnificado
+            valoraciones={valoraciones}
+            consultasMed={consultasMed}
+            consultasNut={consultasNut}
+            planes={planes}
+          />
         )}
 
         {/* FISIOTERAPIA */}
