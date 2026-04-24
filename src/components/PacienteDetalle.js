@@ -251,6 +251,8 @@ function TabFisioterapia({ paciente, valoraciones, planes, onActualizar, usuario
           paciente={paciente}
           valoracion={valoraciones[0]}
           planes={planes || []}
+          usuario={usuario}
+          onPlanCreado={onActualizar}
         />
       )}
 
