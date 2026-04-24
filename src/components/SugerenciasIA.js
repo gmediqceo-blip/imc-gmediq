@@ -6,8 +6,6 @@ const B = {
   green: '#1A7A4A', red: '#B02020', orange: '#C25A00',
 };
 
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNlcnh6bXBpYmxqZnF0dXlhemVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MDIyMTQsImV4cCI6MjA5MjQ3ODIxNH0.DjtCwrmDNx31WCmIksZPGiLrZ3q9INvO2mZiBH2kNro';
-
 const calcAge = dob => dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000)) : 0;
 const grupoLabels = { transformacion: 'Transformación Corporal', prequirurgico: 'Pre-quirúrgico', postquirurgico: 'Post-quirúrgico' };
 
@@ -82,22 +80,34 @@ Por favor genera:
 Sé específico, clínico y práctico. Usa los datos reales del paciente en tus recomendaciones.`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Llamada directa a Groq sin proxy
+      const groqKey = process.env.REACT_APP_GROQ_KEY;
+      if (!groqKey) { setError('Clave IA no configurada. Contacta al administrador.'); setCargando(false); return; }
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${groqKey}`,
+        },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'llama-3.3-70b-versatile',
           max_tokens: 1500,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            {
+              role: 'system',
+              content: 'Eres un especialista en medicina deportiva y ejercicio terapéutico del Instituto Metabólico Corporal (IMC) by GMEDiQ. Generas recomendaciones clínicas precisas y personalizadas. Respondes en español con formato claro.'
+            },
+            { role: 'user', content: prompt }
+          ],
         }),
       });
 
       const data = await response.json();
-      const text = data.content?.map(c => c.text || '').join('') || '';
 
-      if (!text) {
-        setError('No se recibió respuesta. Verifica la conexión.');
+      if (!response.ok || data.error) {
+        setError('Error de IA: ' + (data.error?.message || JSON.stringify(data.error) || 'Sin respuesta'));
       } else {
+        const text = data.choices?.[0]?.message?.content || '';
         setSugerencias(text);
       }
     } catch (err) {
