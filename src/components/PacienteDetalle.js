@@ -6,6 +6,7 @@ import { Field, TextArea, SectionTitle, FieldRow } from './FormFields';
 import BancoArchivos from './BancoArchivos';
 import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
 import Parametros from './Parametros';
+import SugerenciasIA from './SugerenciasIA';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -173,7 +174,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
         {/* PARÁMETROS */}
         {tab === 'parametros' && (
-          <Parametros valoraciones={valoraciones} paciente={paciente} />
+          <Parametros valoraciones={valoraciones} consultasMed={consultasMed} paciente={paciente} />
         )}
 
         {/* FISIOTERAPIA */}
@@ -332,7 +333,13 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
     // Convert empty strings to null
     Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
     const { error } = await supabase.from('valoraciones').insert([data]);
-    if (!error) onGuardado();
+    if (!error) {
+      // Update patient estado if changed
+      if (form.nuevo_estado) {
+        await supabase.from('pacientes').update({ grupo: form.nuevo_estado }).eq('id', paciente.id);
+      }
+      onGuardado();
+    }
     setGuardando(false);
   };
 
@@ -417,6 +424,15 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
               <option value="apto">✓ Apto — sin restricciones</option>
               <option value="apto_rest">⚠ Apto con restricciones</option>
               <option value="no_apto">✗ No apto — requiere evaluación médica</option>
+            </select>
+          </div>
+          <div style={{ flex: '0 0 100%', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Actualizar estado del paciente</label>
+            <select value={form.nuevo_estado || ''} onChange={e => set('nuevo_estado')(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none' }}>
+              <option value="">— Sin cambios —</option>
+              <option value="transformacion">Transformación corporal</option>
+              <option value="prequirurgico">Pre-quirúrgico</option>
+              <option value="postquirurgico">Post-quirúrgico</option>
             </select>
           </div>
           <TextArea label="Notas adicionales" value={form.notas} onChange={set('notas')} />

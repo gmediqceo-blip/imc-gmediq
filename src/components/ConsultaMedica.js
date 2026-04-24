@@ -488,6 +488,8 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   // Indicaciones
   const [indicaciones, setIndicaciones] = useState('');
   const [proximaCita, setProximaCita] = useState('');
+  // Estado paciente
+  const [nuevoEstado, setNuevoEstado] = useState('');
   // UI
   const [seccion, setSeccion] = useState('motivo');
   const [guardando, setGuardando] = useState(false);
@@ -563,7 +565,12 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
     // Remove any undefined values
     Object.keys(data).forEach(k => { if (data[k] === undefined) delete data[k]; });
     const { error } = await supabase.from('consultas_medicas').insert([data]);
-    if (!error) onGuardado();
+    if (!error) {
+      if (nuevoEstado) {
+        await supabase.from('pacientes').update({ grupo: nuevoEstado }).eq('id', paciente.id);
+      }
+      onGuardado();
+    }
     setGuardando(false);
   };
 
@@ -871,10 +878,22 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
             <div>
               <CTextArea label="Indicaciones y recomendaciones" value={indicaciones} onChange={setIndicaciones} rows={6}
                 placeholder="Indicaciones para el paciente: dieta, actividad física, cuidados, señales de alarma, próximos pasos..." />
-              <div style={{ marginTop: 14 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Próxima cita</label>
-                <input type="date" value={proximaCita} onChange={e => setProximaCita(e.target.value)}
-                  style={{ padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Próxima cita</label>
+                  <input type="date" value={proximaCita} onChange={e => setProximaCita(e.target.value)}
+                    style={{ padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Actualizar estado del paciente</label>
+                  <select value={nuevoEstado} onChange={e => setNuevoEstado(e.target.value)}
+                    style={{ padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' }}>
+                    <option value="">— Sin cambios —</option>
+                    <option value="transformacion">Transformación corporal</option>
+                    <option value="prequirurgico">Pre-quirúrgico</option>
+                    <option value="postquirurgico">Post-quirúrgico</option>
+                  </select>
+                </div>
               </div>
               <div style={{ marginTop: 20, background: B.white, borderRadius: 10, border: `1.5px solid ${B.grayMd}`, padding: '16px 18px' }}>
                 <p style={{ fontWeight: 700, fontSize: 12, color: B.navy, margin: '0 0 12px' }}>📋 Resumen de la consulta</p>
