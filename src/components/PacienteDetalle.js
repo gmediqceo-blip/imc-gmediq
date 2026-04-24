@@ -323,8 +323,10 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
 
   const guardar = async () => {
     setGuardando(true);
+    // Excluir nuevo_estado — es solo para actualizar pacientes, no va en valoraciones
+    const { nuevo_estado, ...formData } = form;
     const data = {
-      ...form, paciente_id: paciente.id, terapeuta_id: usuario?.id,
+      ...formData, paciente_id: paciente.id, terapeuta_id: usuario?.id,
       bmi: bmi || null, fc_max: fcmax || null, fc_reserva: reserve || null,
       zona1_lo: form.zona1_lo || z1.lo || null, zona1_hi: form.zona1_hi || z1.hi || null,
       zona2_lo: form.zona2_lo || z2.lo || null, zona2_hi: form.zona2_hi || z2.hi || null,
