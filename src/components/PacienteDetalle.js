@@ -179,7 +179,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
         {/* FISIOTERAPIA */}
         {tab === 'fisioterapia' && (
-          <TabFisioterapia paciente={paciente} valoraciones={valoraciones} onActualizar={fetchTodo} usuario={usuario} />
+          <TabFisioterapia paciente={paciente} valoraciones={valoraciones} planes={planes} onActualizar={fetchTodo} usuario={usuario} />
         )}
 
         {/* MÉDICO */}
@@ -221,7 +221,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 }
 
 // ── TAB FISIOTERAPIA ──────────────────────────────────────────────────────────
-function TabFisioterapia({ paciente, valoraciones, onActualizar, usuario }) {
+function TabFisioterapia({ paciente, valoraciones, planes, onActualizar, usuario }) {
   const [modalNueva, setModalNueva] = useState(false);
   const [toast, setToast] = useState(null);
   const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
@@ -243,6 +243,15 @@ function TabFisioterapia({ paciente, valoraciones, onActualizar, usuario }) {
         </div>
       ) : (
         valoraciones.map((v, i) => <ValoracionCard key={v.id} v={v} />)
+      )}
+
+      {/* IA Sugerencias */}
+      {valoraciones.length > 0 && (
+        <SugerenciasIA
+          paciente={paciente}
+          valoracion={valoraciones[0]}
+          planes={planes || []}
+        />
       )}
 
       {modalNueva && (
