@@ -382,6 +382,75 @@ const CTextArea = ({ label, value, onChange, rows = 4, placeholder }) => (
   </div>
 );
 
+
+// ─── NUEVO CIE-10 — guarda en Supabase y agrega al diagnóstico ───────────────
+function NuevoCie10({ busqueda, onAgregar }) {
+  const [codigo, setCodigo] = useState(busqueda.toUpperCase());
+  const [descripcion, setDescripcion] = useState('');
+  const [categoria, setCategoria] = useState('Otro');
+  const [guardando, setGuardando] = useState(false);
+
+  const categorias = ['Endocrino/Metabólico','Cardiovascular','Digestivo','Musculoesquelético',
+    'Neurológico','Respiratorio','Genitourinario','Mental','Preventivo/Seguimiento',
+    'Síntomas/Signos','Piel','Sangre','Neoplasias','Infecciosas','Otro'];
+
+  const agregar = async () => {
+    if (!codigo.trim() || !descripcion.trim()) return;
+    setGuardando(true);
+    // Save to Supabase CIE-10 table
+    await supabase.from('cie10').upsert([{
+      codigo: codigo.trim().toUpperCase(),
+      descripcion: descripcion.trim(),
+      categoria,
+    }], { onConflict: 'codigo' });
+    // Add to current consultation
+    onAgregar({ code: codigo.trim().toUpperCase(), desc: descripcion.trim() });
+    setGuardando(false);
+  };
+
+  return (
+    <div style={{ padding: '14px 16px', background: '#FFFBEB', borderTop: '1px solid #FDE68A' }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: '#B45309', margin: '0 0 10px' }}>
+        ⚠ Código no encontrado — agregar nuevo CIE-10
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 160px', gap: 8, marginBottom: 8 }}>
+        <div>
+          <label style={{ fontSize: 9, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 3 }}>Código *</label>
+          <input value={codigo} onChange={e => setCodigo(e.target.value.toUpperCase())}
+            placeholder="Ej: E66.01"
+            style={{ width: '100%', padding: '7px 9px', border: '1.5px solid #FDE68A', borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: 'white' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 9, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 3 }}>Descripción *</label>
+          <input value={descripcion} onChange={e => setDescripcion(e.target.value)}
+            placeholder="Ej: Obesidad mórbida por exceso de calorías"
+            style={{ width: '100%', padding: '7px 9px', border: '1.5px solid #FDE68A', borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: 'white' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 9, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 3 }}>Categoría</label>
+          <select value={categoria} onChange={e => setCategoria(e.target.value)}
+            style={{ width: '100%', padding: '7px 9px', border: '1.5px solid #FDE68A', borderRadius: 6, fontSize: 12, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: 'white' }}>
+            {['Endocrino/Metabólico','Cardiovascular','Digestivo','Musculoesquelético',
+              'Neurológico','Respiratorio','Genitourinario','Mental','Preventivo/Seguimiento',
+              'Síntomas/Signos','Piel','Sangre','Neoplasias','Infecciosas','Otro'].map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button onClick={agregar} disabled={guardando || !codigo.trim() || !descripcion.trim()}
+          style={{ padding: '7px 18px', background: guardando ? '#9AA5B1' : '#B45309', color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+          {guardando ? 'Guardando...' : '+ Agregar y guardar en CIE-10'}
+        </button>
+      </div>
+      <p style={{ fontSize: 10, color: '#92400E', margin: '6px 0 0' }}>
+        Este código quedará guardado permanentemente en la base de datos para futuras búsquedas.
+      </p>
+    </div>
+  );
+}
+
 // ─── MODAL NUEVA CONSULTA ─────────────────────────────────────────────────────
 function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   // Datos generales
@@ -402,6 +471,8 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   // Diagnósticos
   const [diagnosticos, setDiagnosticos] = useState([]);
   const [busquedaCie, setBusquedaCie] = useState('');
+  const [cie10Results, setCie10Results] = useState([]);
+  const [buscandoCie, setBuscandoCie] = useState(false);
   // Medicamentos
   const [medicamentos, setMedicamentos] = useState([]);
   const [nuevoMed, setNuevoMed] = useState({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
@@ -430,11 +501,6 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
     { key: 'indicaciones', label: '6. Indicaciones' },
   ];
 
-  const cie10Filtrados = CIE10_IMC.filter(d =>
-    d.code.toLowerCase().includes(busquedaCie.toLowerCase()) ||
-    d.desc.toLowerCase().includes(busquedaCie.toLowerCase())
-  ).slice(0, 15);
-
   const addDiagnostico = (d) => {
     if (!diagnosticos.find(x => x.code === d.code)) {
       setDiagnosticos(p => [...p, d]);
@@ -443,6 +509,18 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   };
 
   const removeDiagnostico = (code) => setDiagnosticos(p => p.filter(d => d.code !== code));
+
+  const buscarCie10 = async (q) => {
+    setBusquedaCie(q);
+    if (!q || q.length < 2) { setCie10Results([]); return; }
+    setBuscandoCie(true);
+    const { data } = await supabase.from('cie10')
+      .select('codigo, descripcion, categoria')
+      .or(`codigo.ilike.${q}%,descripcion.ilike.%${q}%`)
+      .limit(15);
+    setCie10Results(data || []);
+    setBuscandoCie(false);
+  };
 
   const addMedicamento = () => {
     if (!nuevoMed.nombre.trim()) return;
@@ -610,27 +688,28 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
                   Buscar diagnóstico por código o nombre
                 </label>
-                <input value={busquedaCie} onChange={e => setBusquedaCie(e.target.value)}
-                  placeholder="Ej: E66 u 'obesidad' o 'diabetes'..."
+                <input value={busquedaCie} onChange={e => buscarCie10(e.target.value)}
+                  placeholder="Ej: E66, 'obesidad', 'diabetes', 'hipertensión'..."
                   style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${B.grayMd}`, borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'inherit' }} />
-                {busquedaCie && (
+                {buscandoCie && <p style={{ fontSize: 11, color: B.teal, marginBottom: 8 }}>Buscando...</p>}
+                {busquedaCie && !buscandoCie && (
                   <div style={{ background: B.white, borderRadius: 10, border: `1.5px solid ${B.grayMd}`, overflow: 'hidden', maxHeight: 300, overflowY: 'auto' }}>
-                    {cie10Filtrados.length === 0 ? (
-                      <div style={{ padding: '12px 14px' }}>
-                        <p style={{ fontSize: 12, color: B.gray, margin: '0 0 8px' }}>No encontrado en la lista. ¿Agregar manualmente?</p>
-                        <button onClick={() => { addDiagnostico({ code: busquedaCie.toUpperCase(), desc: 'Diagnóstico personalizado' }); }}
-                          style={{ padding: '6px 14px', background: B.teal, color: 'white', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          + Agregar "{busquedaCie}"
-                        </button>
-                      </div>
-                    ) : cie10Filtrados.map((d, i) => (
-                      <div key={i} onClick={() => addDiagnostico(d)}
-                        style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 14px', cursor: 'pointer', borderBottom: `1px solid ${B.grayLt}`, background: diagnosticos.find(x => x.code === d.code) ? B.teal + '11' : 'white' }}
+                    {cie10Results.length === 0 ? (
+                      <NuevoCie10
+                        busqueda={busquedaCie}
+                        onAgregar={(d) => { addDiagnostico(d); setBusquedaCie(''); setCie10Results([]); }}
+                      />
+                    ) : cie10Results.map((d, i) => (
+                      <div key={i} onClick={() => { addDiagnostico({ code: d.codigo, desc: d.descripcion }); setBusquedaCie(''); setCie10Results([]); }}
+                        style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '10px 14px', cursor: 'pointer', borderBottom: `1px solid ${B.grayLt}`, background: diagnosticos.find(x => x.code === d.codigo) ? B.teal + '11' : 'white' }}
                         onMouseEnter={e => e.currentTarget.style.background = B.grayLt}
-                        onMouseLeave={e => e.currentTarget.style.background = diagnosticos.find(x => x.code === d.code) ? B.teal + '11' : 'white'}>
-                        <span style={{ background: B.navy, color: 'white', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{d.code}</span>
-                        <span style={{ fontSize: 13, color: B.navy }}>{d.desc}</span>
-                        {diagnosticos.find(x => x.code === d.code) && <span style={{ marginLeft: 'auto', color: B.teal, fontSize: 12 }}>✓</span>}
+                        onMouseLeave={e => e.currentTarget.style.background = diagnosticos.find(x => x.code === d.codigo) ? B.teal + '11' : 'white'}>
+                        <span style={{ background: B.navy, color: 'white', padding: '2px 7px', borderRadius: 5, fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{d.codigo}</span>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 13, color: B.navy }}>{d.descripcion}</span>
+                          {d.categoria && <span style={{ fontSize: 10, color: B.gray, marginLeft: 8 }}>{d.categoria}</span>}
+                        </div>
+                        {diagnosticos.find(x => x.code === d.codigo) && <span style={{ color: B.teal, fontSize: 12 }}>✓</span>}
                       </div>
                     ))}
                   </div>
