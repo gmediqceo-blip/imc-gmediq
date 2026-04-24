@@ -408,23 +408,24 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
 
   const guardar = async () => {
     setGuardando(true);
+    const bmi = peso && talla ? (parseFloat(peso) / ((parseFloat(talla) / 100) ** 2)).toFixed(1) : null;
     const data = {
       paciente_id: paciente.id,
-      medico_id: usuario?.id,
-      medico_nombre: medicoNombre,
-      fecha,
+      medico_id: usuario?.id || null,
+      medico_nombre: medicoNombre || null,
+      fecha: fecha || new Date().toISOString().split('T')[0],
       motivo_consulta: motivoConsulta || null,
       evolucion: evolucion || null,
       examen_fisico: examenFisico || null,
-      peso: peso || null,
-      talla: talla || null,
-      bmi: peso && talla ? (parseFloat(peso) / ((parseFloat(talla) / 100) ** 2)).toFixed(1) : null,
-      pa_sistolica: paSis || null,
-      pa_diastolica: paDia || null,
-      fc: fc || null,
-      fr: fr || null,
-      spo2: spo2 || null,
-      temperatura: temperatura || null,
+      peso: peso ? parseFloat(peso) : null,
+      talla: talla ? parseFloat(talla) : null,
+      bmi: bmi ? parseFloat(bmi) : null,
+      pa_sistolica: paSis ? parseInt(paSis) : null,
+      pa_diastolica: paDia ? parseInt(paDia) : null,
+      fc: fc ? parseInt(fc) : null,
+      fr: fr ? parseInt(fr) : null,
+      spo2: spo2 ? parseFloat(spo2) : null,
+      temperatura: temperatura ? parseFloat(temperatura) : null,
       diagnosticos: JSON.stringify(diagnosticos),
       medicamentos: JSON.stringify(medicamentos),
       examenes_lab: JSON.stringify(examLab),
@@ -432,6 +433,8 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
       indicaciones: indicaciones || null,
       proxima_visita: proximaCita || null,
     };
+    // Remove any undefined values
+    Object.keys(data).forEach(k => { if (data[k] === undefined) delete data[k]; });
     const { error } = await supabase.from('consultas_medicas').insert([data]);
     if (!error) onGuardado();
     setGuardando(false);
