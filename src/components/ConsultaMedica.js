@@ -909,17 +909,35 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
 
 // ─── HISTORIAL UNIFICADO ──────────────────────────────────────────────────────
 export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, planes }) {
+  const [openIdx, setOpenIdx] = useState(null);
+
   const eventos = [
-    ...valoraciones.map(v => ({ tipo: 'fisio', fecha: v.fecha, titulo: 'Valoración fisioterapéutica', sub: `${v.terapeuta_nombre || '—'} · Peso: ${v.peso || '—'}kg · VO2max: ${v.vo2max || '—'}`, color: '#1E7CB5', icon: '🏃', aptitud: v.aptitud, data: v })),
+    ...valoraciones.map(v => ({
+      tipo: 'fisio', fecha: v.fecha,
+      titulo: 'Valoración fisioterapéutica',
+      sub: `${v.terapeuta_nombre || '—'} · Peso: ${v.peso || '—'}kg · VO2max: ${v.vo2max || '—'}`,
+      color: '#1E7CB5', icon: '🏃', aptitud: v.aptitud, data: v
+    })),
     ...consultasMed.map(c => {
       const diags = c.diagnosticos ? JSON.parse(c.diagnosticos) : [];
-      return { tipo: 'medico', fecha: c.fecha, titulo: 'Consulta médica', sub: `${c.medico_nombre || '—'}${diags.length > 0 ? ' · ' + diags[0].code : ''}`, color: '#4B647A', icon: '🩺', data: c };
+      const meds = c.medicamentos ? JSON.parse(c.medicamentos) : [];
+      const exLab = c.examenes_lab ? JSON.parse(c.examenes_lab) : [];
+      const exImg = c.examenes_imagen ? JSON.parse(c.examenes_imagen) : [];
+      return { tipo: 'medico', fecha: c.fecha, titulo: 'Consulta médica',
+        sub: `${c.medico_nombre || '—'}${diags.length > 0 ? ' · ' + diags[0].code + ' ' + diags[0].desc?.substring(0,30) : ''}`,
+        color: '#4B647A', icon: '🩺', data: c, diags, meds, exLab, exImg };
     }),
-    ...consultasNut.map(n => ({ tipo: 'nutricion', fecha: n.fecha, titulo: 'Consulta nutricional', sub: `${n.nutricionista_nombre || '—'}${n.kcal_objetivo ? ' · ' + n.kcal_objetivo + ' kcal' : ''}`, color: '#1A7A4A', icon: '🥗', data: n })),
-    ...planes.map(p => ({ tipo: 'plan', fecha: p.fecha, titulo: `Plan de ejercicio · Fase ${p.fase}`, sub: `${p.terapeuta_nombre || '—'} · ${p.entorno === 'gym' ? 'Gimnasio' : 'Casa'} · ${p.plan_ejercicios?.length || 0} ejercicios`, color: '#0B1F3B', icon: '🏋️', data: p })),
+    ...consultasNut.map(n => ({ tipo: 'nutricion', fecha: n.fecha,
+      titulo: 'Consulta nutricional',
+      sub: `${n.nutricionista_nombre || '—'}${n.kcal_objetivo ? ' · ' + n.kcal_objetivo + ' kcal' : ''}`,
+      color: '#1A7A4A', icon: '🥗', data: n })),
+    ...planes.map(p => ({ tipo: 'plan', fecha: p.fecha,
+      titulo: `Plan de ejercicio · Fase ${p.fase}`,
+      sub: `${p.terapeuta_nombre || '—'} · ${p.entorno === 'gym' ? 'Gimnasio' : 'Casa'} · ${p.plan_ejercicios?.length || 0} ejercicios`,
+      color: '#0B1F3B', icon: '🏋️', data: p })),
   ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-  const fmtDateShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const fmtDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
   if (eventos.length === 0) return (
     <div style={{ textAlign: 'center', padding: 60, background: '#FFFFFF', borderRadius: 12, border: '1.5px solid #DDE3EA' }}>
@@ -936,21 +954,128 @@ export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, p
       <div style={{ position: 'relative' }}>
         <div style={{ position: 'absolute', left: 19, top: 0, bottom: 0, width: 2, background: '#DDE3EA' }} />
         {eventos.map((ev, i) => (
-          <div key={i} style={{ display: 'flex', gap: 14, marginBottom: 14, position: 'relative' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 20, background: ev.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, zIndex: 1, border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+          <div key={i} style={{ display: 'flex', gap: 14, marginBottom: 12, position: 'relative' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 20, background: ev.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, zIndex: 1, border: '3px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', marginTop: 2 }}>
               {ev.icon}
             </div>
-            <div style={{ flex: 1, background: '#FFFFFF', borderRadius: 10, border: '1.5px solid #DDE3EA', padding: '12px 16px', borderLeft: `4px solid ${ev.color}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
+            <div style={{ flex: 1, background: '#FFFFFF', borderRadius: 10, border: '1.5px solid #DDE3EA', borderLeft: `4px solid ${ev.color}`, overflow: 'hidden' }}>
+              {/* Header clickeable */}
+              <div onClick={() => setOpenIdx(openIdx === i ? null : i)}
+                style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
                   <p style={{ fontWeight: 700, fontSize: 13, color: '#0B1F3B', margin: '0 0 3px' }}>{ev.titulo}</p>
                   <p style={{ fontSize: 11, color: '#6E6E70', margin: 0 }}>{ev.sub}</p>
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: ev.color, margin: 0 }}>{fmtDateShort(ev.fecha)}</p>
-                  {ev.aptitud && <span style={{ fontSize: 9, background: ev.aptitud === 'apto' ? '#1A7A4A22' : '#C2500022', color: ev.aptitud === 'apto' ? '#1A7A4A' : '#C25A00', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>{ev.aptitud === 'apto' ? '✓ Apto' : '⚠ Con restricciones'}</span>}
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginLeft: 12, flexShrink: 0 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: ev.color, margin: 0 }}>{fmtDate(ev.fecha)}</p>
+                  {ev.aptitud && <span style={{ fontSize: 9, background: ev.aptitud === 'apto' ? '#1A7A4A22' : '#C2500022', color: ev.aptitud === 'apto' ? '#1A7A4A' : '#C25A00', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>{ev.aptitud === 'apto' ? '✓ Apto' : '⚠ Restricciones'}</span>}
+                  <span style={{ color: ev.color, fontSize: 14 }}>{openIdx === i ? '▲' : '▼'}</span>
                 </div>
               </div>
+
+              {/* Detalle expandible */}
+              {openIdx === i && (
+                <div style={{ borderTop: '1px solid #F4F6F8', padding: '14px 16px', background: '#FAFBFC' }}>
+
+                  {/* FISIOTERAPIA */}
+                  {ev.tipo === 'fisio' && (
+                    <div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 8, marginBottom: 12 }}>
+                        {[['Peso', ev.data.peso, 'kg'], ['% Grasa', ev.data.pct_grasa, '%'], ['Músculo', ev.data.masa_muscular, 'kg'], ['IMC', ev.data.bmi, ''], ['VO2max', ev.data.vo2max, 'ml/kg/min'], ['FC reposo', ev.data.fc_reposo, 'bpm'], ['SpO2', ev.data.spo2, '%'], ['Cintura', ev.data.cintura, 'cm'], ['Sit & Stand', ev.data.sit_stand, 'reps'], ['Dina. D', ev.data.dina_d, 'kg']].filter(([,v]) => v).map(([l,v,u]) => (
+                          <div key={l} style={{ background: 'white', borderRadius: 7, padding: '7px 10px', border: '1px solid #DDE3EA' }}>
+                            <p style={{ fontSize: 9, color: '#4B647A', fontWeight: 700, textTransform: 'uppercase', margin: '0 0 2px' }}>{l}</p>
+                            <p style={{ fontSize: 15, fontWeight: 700, color: '#0B1F3B', margin: 0 }}>{v}<span style={{ fontSize: 9, color: '#6E6E70' }}> {u}</span></p>
+                          </div>
+                        ))}
+                      </div>
+                      {ev.data.zona2_lo && ev.data.zona2_hi && (
+                        <div style={{ background: '#E8F5E9', borderRadius: 8, padding: '8px 12px', marginBottom: 10, display: 'inline-block' }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: '#1A7A4A', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: 1 }}>Zona 2 objetivo</p>
+                          <p style={{ fontSize: 18, fontWeight: 700, color: '#1A7A4A', fontFamily: 'monospace', margin: 0 }}>{ev.data.zona2_lo} – {ev.data.zona2_hi} bpm</p>
+                        </div>
+                      )}
+                      {ev.data.diagnostico && <p style={{ fontSize: 12, color: '#0B1F3B', marginTop: 8 }}><strong>Diagnóstico:</strong> {ev.data.diagnostico}</p>}
+                      {ev.data.limitantes && <p style={{ fontSize: 12, color: '#C25A00', marginTop: 4 }}><strong>Limitantes:</strong> {ev.data.limitantes}</p>}
+                    </div>
+                  )}
+
+                  {/* MÉDICO */}
+                  {ev.tipo === 'medico' && (
+                    <div>
+                      {/* Signos vitales */}
+                      {(ev.data.peso || ev.data.pa_sistolica || ev.data.fc) && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginBottom: 12 }}>
+                          {[['Peso', ev.data.peso, 'kg'], ['IMC', ev.data.bmi, ''], ['PA', ev.data.pa_sistolica && ev.data.pa_diastolica ? `${ev.data.pa_sistolica}/${ev.data.pa_diastolica}` : null, 'mmHg'], ['FC', ev.data.fc, 'lpm'], ['SpO2', ev.data.spo2, '%'], ['Temp', ev.data.temperatura, '°C']].filter(([,v]) => v).map(([l,v,u]) => (
+                            <div key={l} style={{ background: 'white', borderRadius: 7, padding: '7px 10px', border: '1px solid #DDE3EA' }}>
+                              <p style={{ fontSize: 9, color: '#4B647A', fontWeight: 700, textTransform: 'uppercase', margin: '0 0 2px' }}>{l}</p>
+                              <p style={{ fontSize: 14, fontWeight: 700, color: '#0B1F3B', margin: 0 }}>{v}<span style={{ fontSize: 9, color: '#6E6E70' }}> {u}</span></p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {ev.data.motivo_consulta && <p style={{ fontSize: 12, color: '#0B1F3B', marginBottom: 8 }}><strong>Motivo:</strong> {ev.data.motivo_consulta}</p>}
+                      {ev.data.evolucion && <p style={{ fontSize: 12, color: '#0B1F3B', marginBottom: 8 }}><strong>Evolución:</strong> {ev.data.evolucion}</p>}
+                      {ev.diags?.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 6px' }}>Diagnósticos</p>
+                          {ev.diags.map((d, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
+                              <span style={{ background: '#0B1F3B', color: 'white', padding: '2px 7px', borderRadius: 5, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{d.code}</span>
+                              <span style={{ fontSize: 12, color: '#0B1F3B' }}>{d.desc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {ev.meds?.length > 0 && (
+                        <div style={{ marginBottom: 8 }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 6px' }}>Medicamentos prescritos</p>
+                          {ev.meds.map((m, i) => (
+                            <div key={i} style={{ background: '#E8F5EE', borderRadius: 6, padding: '5px 10px', marginBottom: 4, borderLeft: '3px solid #1A7A4A' }}>
+                              <p style={{ fontSize: 12, fontWeight: 600, color: '#0B1F3B', margin: '0 0 1px' }}>{m.nombre}</p>
+                              <p style={{ fontSize: 11, color: '#4B647A', margin: 0 }}>{m.dosis} · {m.frecuencia} · {m.duracion}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {(ev.exLab?.length > 0 || ev.exImg?.length > 0) && (
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 4px' }}>Exámenes solicitados</p>
+                          {ev.exLab?.length > 0 && <p style={{ fontSize: 11, color: '#0B1F3B', margin: '0 0 2px' }}>🧪 {ev.exLab.join(', ')}</p>}
+                          {ev.exImg?.length > 0 && <p style={{ fontSize: 11, color: '#0B1F3B', margin: 0 }}>🩻 {ev.exImg.join(', ')}</p>}
+                        </div>
+                      )}
+                      {ev.data.indicaciones && <p style={{ fontSize: 12, color: '#0B1F3B', marginTop: 8 }}><strong>Indicaciones:</strong> {ev.data.indicaciones}</p>}
+                      {ev.data.proxima_visita && <p style={{ fontSize: 12, color: '#1E7CB5', marginTop: 6, fontWeight: 600 }}>📅 Próxima cita: {fmtDate(ev.data.proxima_visita)}</p>}
+                    </div>
+                  )}
+
+                  {/* PLAN EJERCICIO */}
+                  {ev.tipo === 'plan' && ev.data.plan_ejercicios?.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>Ejercicios del plan</p>
+                      {['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(dia => {
+                        const exs = ev.data.plan_ejercicios.filter(e => e.dia === dia);
+                        if (!exs.length) return null;
+                        return (
+                          <div key={dia} style={{ marginBottom: 8 }}>
+                            <p style={{ fontSize: 11, fontWeight: 700, color: '#0B1F3B', margin: '0 0 4px' }}>{dia}</p>
+                            {exs.map((e, i) => <p key={i} style={{ fontSize: 11, color: '#4B647A', margin: '0 0 2px' }}>· {e.series}×{e.repeticiones} {e.nota || ''}</p>)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* NUTRICIÓN */}
+                  {ev.tipo === 'nutricion' && (
+                    <div>
+                      {ev.data.kcal_objetivo && <p style={{ fontSize: 12, color: '#0B1F3B', margin: '0 0 6px' }}><strong>Calorías:</strong> {ev.data.kcal_objetivo} kcal/día</p>}
+                      {ev.data.proteina_g && <p style={{ fontSize: 12, color: '#0B1F3B', margin: '0 0 4px' }}><strong>Proteína:</strong> {ev.data.proteina_g}g · <strong>Carbohidratos:</strong> {ev.data.carbohidratos_g}g · <strong>Grasas:</strong> {ev.data.grasas_g}g</p>}
+                      {ev.data.plan_nutricional && <p style={{ fontSize: 12, color: '#0B1F3B', marginTop: 6 }}><strong>Plan:</strong> {ev.data.plan_nutricional}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}

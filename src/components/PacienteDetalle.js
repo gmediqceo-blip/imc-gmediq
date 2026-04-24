@@ -5,6 +5,7 @@ import { BotonesDocumentos } from './Documentos';
 import { Field, TextArea, SectionTitle, FieldRow } from './FormFields';
 import BancoArchivos from './BancoArchivos';
 import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
+import Parametros from './Parametros';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -50,6 +51,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   const tabs = [
     { key: 'resumen', label: '📋 Resumen' },
     { key: 'historial', label: '📅 Historial' },
+    { key: 'parametros', label: '📈 Parámetros' },
     { key: 'fisioterapia', label: '🏃 Fisioterapia' },
     { key: 'medico', label: '🩺 Médico' },
     { key: 'nutricion', label: '🥗 Nutrición' },
@@ -167,6 +169,11 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
             consultasNut={consultasNut}
             planes={planes}
           />
+        )}
+
+        {/* PARÁMETROS */}
+        {tab === 'parametros' && (
+          <Parametros valoraciones={valoraciones} paciente={paciente} />
         )}
 
         {/* FISIOTERAPIA */}
