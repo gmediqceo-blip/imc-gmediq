@@ -10,6 +10,7 @@ export default function Dashboard({ session }) {
   const [usuario, setUsuario] = useState(null);
   const [screen, setScreen] = useState('pacientes');
   const [pacienteActivo, setPacienteActivo] = useState(null);
+  const [modalPerfil, setModalPerfil] = useState(false);
 
   useEffect(() => {
     const fetchUsuario = async () => {
@@ -69,7 +70,9 @@ export default function Dashboard({ session }) {
                 <p style={{ color: 'white', fontSize: 13, fontWeight: 600, margin: 0 }}>{usuario.nombre} {usuario.apellido}</p>
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, margin: 0, textTransform: 'uppercase', letterSpacing: 1 }}>{rolLabel[usuario.rol]}</p>
               </div>
-              <div style={{ width: 34, height: 34, borderRadius: 17, background: rolColor[usuario.rol] || B.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 14 }}>
+              <div onClick={() => setModalPerfil(true)}
+                title="Ver mi perfil"
+                style={{ width: 34, height: 34, borderRadius: 17, background: rolColor[usuario.rol] || B.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer', border: '2px solid rgba(255,255,255,0.3)' }}>
                 {usuario.nombre?.charAt(0)?.toUpperCase()}
               </div>
             </>
@@ -89,6 +92,107 @@ export default function Dashboard({ session }) {
         )}
         {screen === 'banco_ejercicios' && <BancoEjercicios usuario={usuario} />}
         {screen === 'usuarios' && <Usuarios usuarioActual={usuario} />}
+      </div>
+
+      {/* Modal Mi Perfil */}
+      {modalPerfil && usuario && (
+        <ModalMiPerfil
+          usuario={usuario}
+          onClose={() => setModalPerfil(false)}
+          onGuardado={async () => {
+            const { data } = await supabase.from('usuarios').select('*').eq('id', session.user.id).single();
+            setUsuario(data);
+            setModalPerfil(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── MODAL MI PERFIL ──────────────────────────────────────────────────────────
+function ModalMiPerfil({ usuario, onClose, onGuardado }) {
+  const [nombre, setNombre] = useState(usuario.nombre || '');
+  const [apellido, setApellido] = useState(usuario.apellido || '');
+  const [telefono, setTelefono] = useState(usuario.telefono || '');
+  const [especialidad, setEspecialidad] = useState(usuario.especialidad || '');
+  const [registroMsp, setRegistroMsp] = useState(usuario.registro_msp || '');
+  const [guardando, setGuardando] = useState(false);
+
+  const rolLabels = { admin: 'Administrador', fisioterapeuta: 'Fisioterapeuta', medico: 'Médico', nutricionista: 'Nutricionista', secretaria: 'Secretaria' };
+  const rolColor2 = { admin: B.navy, fisioterapeuta: B.blue, medico: B.teal, nutricionista: B.green, secretaria: B.orange };
+  const col = rolColor2[usuario.rol] || B.teal;
+
+  const guardar = async () => {
+    setGuardando(true);
+    await supabase.from('usuarios').update({
+      nombre, apellido,
+      telefono: telefono || null,
+      especialidad: especialidad || null,
+      registro_msp: registroMsp || null,
+    }).eq('id', usuario.id);
+    await onGuardado();
+    setGuardando(false);
+  };
+
+  const Field = ({ label, value, onChange, placeholder }) => (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{ width: '100%', padding: '9px 12px', border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+    </div>
+  );
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+      <div style={{ background: B.white, borderRadius: 14, width: '100%', maxWidth: 460, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        {/* Header */}
+        <div style={{ background: B.navy, padding: '18px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 21, background: col, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 18 }}>
+              {usuario.nombre?.charAt(0)?.toUpperCase()}
+            </div>
+            <div>
+              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, margin: 0 }}>Mi perfil</p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0 }}>{rolLabels[usuario.rol] || usuario.rol}</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer', borderRadius: 6, padding: '3px 9px' }}>✕</button>
+        </div>
+
+        <div style={{ padding: '20px 22px' }}>
+          {/* Email no editable */}
+          <div style={{ background: B.grayLt, borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 2px' }}>Email</p>
+              <p style={{ fontSize: 13, color: B.navy, margin: 0 }}>{usuario.email}</p>
+            </div>
+            <span style={{ background: col + '22', color: col, padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700 }}>{rolLabels[usuario.rol]}</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Field label="Nombre *" value={nombre} onChange={setNombre} />
+            <Field label="Apellido *" value={apellido} onChange={setApellido} />
+          </div>
+          <Field label="Teléfono de contacto" value={telefono} onChange={setTelefono} placeholder="Ej: 0984075703" />
+          <Field label="Especialidad" value={especialidad} onChange={setEspecialidad} placeholder="Ej: Cirugía General y Laparoscópica" />
+          <Field label="Registro MSP / Número profesional" value={registroMsp} onChange={setRegistroMsp} placeholder="Ej: 1804536876" />
+
+          <p style={{ fontSize: 11, color: B.gray, marginBottom: 16, fontStyle: 'italic' }}>
+            Estos datos aparecerán en las recetas médicas y documentos clínicos.
+          </p>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={onClose}
+              style={{ padding: '9px 18px', background: B.grayLt, color: B.gray, border: `1px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Cancelar
+            </button>
+            <button onClick={guardar} disabled={guardando}
+              style={{ padding: '9px 22px', background: guardando ? '#9AA5B1' : B.teal, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {guardando ? 'Guardando...' : '💾 Guardar perfil'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
