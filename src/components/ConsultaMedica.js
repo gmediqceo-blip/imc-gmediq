@@ -155,6 +155,7 @@ const EXAMENES_IMAGEN = {
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 export default function ConsultaMedica({ paciente, consultas, onActualizar, usuario }) {
   const [modalNueva, setModalNueva] = useState(false);
+  const [consultaEditar, setConsultaEditar] = useState(null);
   const [toast, setToast] = useState(null);
   const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
 
@@ -180,7 +181,14 @@ export default function ConsultaMedica({ paciente, consultas, onActualizar, usua
           </button>
         </div>
       ) : (
-        consultas.map(c => <ConsultaCard key={c.id} consulta={c} paciente={paciente} />)
+        consultas.map(c => (
+          <ConsultaCard
+            key={c.id}
+            consulta={c}
+            paciente={paciente}
+            onEditar={() => setConsultaEditar(c)}
+          />
+        ))
       )}
 
       {modalNueva && (
@@ -192,13 +200,23 @@ export default function ConsultaMedica({ paciente, consultas, onActualizar, usua
         />
       )}
 
+      {consultaEditar && (
+        <ModalEditarConsulta
+          paciente={paciente}
+          consulta={consultaEditar}
+          usuario={usuario}
+          onClose={() => setConsultaEditar(null)}
+          onGuardado={() => { onActualizar(); setConsultaEditar(null); showToast('Consulta actualizada ✓'); }}
+        />
+      )}
+
       {toast && <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: toast.color, color: 'white', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
     </div>
   );
 }
 
 // ─── CARD DE CONSULTA ─────────────────────────────────────────────────────────
-function ConsultaCard({ consulta: c, paciente }) {
+function ConsultaCard({ consulta: c, paciente, onEditar }) {
   const [open, setOpen] = useState(false);
   const diagnosticos = c.diagnosticos ? JSON.parse(c.diagnosticos) : [];
   const medicamentos = c.medicamentos ? JSON.parse(c.medicamentos) : [];
@@ -225,6 +243,10 @@ function ConsultaCard({ consulta: c, paciente }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 12 }}>
+          <button onClick={e => { e.stopPropagation(); onEditar && onEditar(); }}
+            style={{ padding: '5px 12px', background: B.blue + '11', color: B.blue, border: `1px solid ${B.blue}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+            ✏️ Editar
+          </button>
           <button onClick={e => { e.stopPropagation(); imprimirConsulta(paciente, c, diagnosticos, medicamentos, examLab, examImg); }}
             style={{ padding: '5px 12px', background: B.navy + '11', color: B.navy, border: `1px solid ${B.navy}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
             🖨 Imprimir
@@ -1098,6 +1120,229 @@ export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, p
             </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+
+// ─── MODAL EDITAR CONSULTA ────────────────────────────────────────────────────
+function ModalEditarConsulta({ paciente, consulta, usuario, onClose, onGuardado }) {
+  const [motivoConsulta, setMotivoConsulta] = useState(consulta.motivo_consulta || '');
+  const [evolucion, setEvolucion] = useState(consulta.evolucion || '');
+  const [examenFisico, setExamenFisico] = useState(consulta.examen_fisico || '');
+  const [peso, setPeso] = useState(consulta.peso || '');
+  const [talla, setTalla] = useState(consulta.talla || '');
+  const [paSis, setPaSis] = useState(consulta.pa_sistolica || '');
+  const [paDia, setPaDia] = useState(consulta.pa_diastolica || '');
+  const [fc, setFc] = useState(consulta.fc || '');
+  const [fr, setFr] = useState(consulta.fr || '');
+  const [spo2, setSpo2] = useState(consulta.spo2 || '');
+  const [temperatura, setTemperatura] = useState(consulta.temperatura || '');
+  const [diagnosticos, setDiagnosticos] = useState(consulta.diagnosticos ? JSON.parse(consulta.diagnosticos) : []);
+  const [medicamentos, setMedicamentos] = useState(consulta.medicamentos ? JSON.parse(consulta.medicamentos) : []);
+  const [examLab, setExamLab] = useState(consulta.examenes_lab ? JSON.parse(consulta.examenes_lab) : []);
+  const [examImg, setExamImg] = useState(consulta.examenes_imagen ? JSON.parse(consulta.examenes_imagen) : []);
+  const [indicaciones, setIndicaciones] = useState(consulta.indicaciones || '');
+  const [proximaCita, setProximaCita] = useState(consulta.proxima_visita || '');
+  const [notaSeguimiento, setNotaSeguimiento] = useState('');
+  const [busquedaCie, setBusquedaCie] = useState('');
+  const [cie10Results, setCie10Results] = useState([]);
+  const [buscandoCie, setBuscandoCie] = useState(false);
+  const [nuevoMed, setNuevoMed] = useState({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
+  const [tab, setTab] = useState('resumen');
+  const [guardando, setGuardando] = useState(false);
+
+  const buscarCie10 = async (q) => {
+    setBusquedaCie(q);
+    if (!q || q.length < 2) { setCie10Results([]); return; }
+    setBuscandoCie(true);
+    const { data } = await supabase.from('cie10').select('codigo,descripcion,categoria').or(`codigo.ilike.${q}%,descripcion.ilike.%${q}%`).limit(12);
+    setCie10Results(data || []);
+    setBuscandoCie(false);
+  };
+
+  const addDiag = (d) => { if (!diagnosticos.find(x => x.code === d.code)) setDiagnosticos(p => [...p, d]); setBusquedaCie(''); setCie10Results([]); };
+  const addMed = () => { if (!nuevoMed.nombre.trim()) return; setMedicamentos(p => [...p, { ...nuevoMed, id: Date.now() }]); setNuevoMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }); };
+
+  const guardar = async () => {
+    setGuardando(true);
+    const updates = {
+      motivo_consulta: motivoConsulta || null,
+      evolucion: (evolucion + (notaSeguimiento ? '\n\n[Nota de seguimiento ' + new Date().toLocaleDateString('es-EC') + '] ' + notaSeguimiento : '')) || null,
+      examen_fisico: examenFisico || null,
+      peso: peso ? parseFloat(peso) : null,
+      talla: talla ? parseFloat(talla) : null,
+      bmi: peso && talla ? parseFloat((parseFloat(peso) / ((parseFloat(talla)/100)**2)).toFixed(1)) : null,
+      pa_sistolica: paSis ? parseInt(paSis) : null,
+      pa_diastolica: paDia ? parseInt(paDia) : null,
+      fc: fc ? parseInt(fc) : null,
+      fr: fr ? parseInt(fr) : null,
+      spo2: spo2 ? parseFloat(spo2) : null,
+      temperatura: temperatura ? parseFloat(temperatura) : null,
+      diagnosticos: JSON.stringify(diagnosticos),
+      medicamentos: JSON.stringify(medicamentos),
+      examenes_lab: JSON.stringify(examLab),
+      examenes_imagen: JSON.stringify(examImg),
+      indicaciones: indicaciones || null,
+      proxima_visita: proximaCita || null,
+    };
+    Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
+    const { error } = await supabase.from('consultas_medicas').update(updates).eq('id', consulta.id);
+    if (!error) onGuardado();
+    else console.error(error);
+    setGuardando(false);
+  };
+
+  const tabs = [
+    { key: 'resumen', label: 'Motivo/Evolución' },
+    { key: 'signos', label: 'Signos vitales' },
+    { key: 'diagnosticos', label: 'Diagnósticos' },
+    { key: 'medicamentos', label: 'Medicamentos' },
+    { key: 'indicaciones', label: 'Indicaciones' },
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.85)', display: 'flex', alignItems: 'stretch', zIndex: 1000 }}>
+      <div style={{ background: B.grayLt, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ background: B.blue, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <div>
+            <p style={{ color: 'white', fontWeight: 800, fontSize: 15, margin: 0 }}>✏️ Editar Consulta Médica</p>
+            <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, margin: 0 }}>{paciente.nombre} {paciente.apellido} · {consulta.fecha}</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={guardar} disabled={guardando}
+              style={{ padding: '8px 20px', background: B.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {guardando ? 'Guardando...' : '💾 Guardar cambios'}
+            </button>
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: 22, cursor: 'pointer', borderRadius: 6, padding: '4px 10px' }}>✕</button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ background: B.white, borderBottom: `2px solid ${B.grayMd}`, display: 'flex', paddingLeft: 20, flexShrink: 0, overflowX: 'auto' }}>
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{ padding: '10px 16px', border: 'none', background: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer', color: tab === t.key ? B.blue : B.gray, borderBottom: tab === t.key ? `3px solid ${B.blue}` : '3px solid transparent', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
+
+          {tab === 'resumen' && (
+            <div>
+              <CTextArea label="Motivo de consulta" value={motivoConsulta} onChange={setMotivoConsulta} rows={3} />
+              <CTextArea label="Evolución" value={evolucion} onChange={setEvolucion} rows={4} />
+              <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 8, padding: '14px 16px', marginTop: 8 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#B45309', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+                  ➕ Agregar nota de seguimiento
+                </label>
+                <textarea value={notaSeguimiento} onChange={e => setNotaSeguimiento(e.target.value)} rows={3}
+                  placeholder="Escribe una nota de seguimiento que se añadirá al registro de evolución..."
+                  style={{ width: '100%', padding: '8px 10px', border: '1.5px solid #FDE68A', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', background: 'white' }} />
+              </div>
+              <CTextArea label="Examen físico" value={examenFisico} onChange={setExamenFisico} rows={4} />
+            </div>
+          )}
+
+          {tab === 'signos' && (
+            <div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
+                {[['Peso (kg)', peso, setPeso], ['Talla (cm)', talla, setTalla], ['PA sistólica', paSis, setPaSis], ['PA diastólica', paDia, setPaDia], ['FC (lpm)', fc, setFc], ['FR (rpm)', fr, setFr], ['SpO2 (%)', spo2, setSpo2], ['Temperatura (°C)', temperatura, setTemperatura]].map(([l, v, s]) => (
+                  <div key={l} style={{ flex: '0 0 48%', marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{l}</label>
+                    <input type="number" value={v} onChange={e => s(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'diagnosticos' && (
+            <div>
+              {diagnosticos.map((d, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', background: B.white, borderRadius: 8, padding: '10px 14px', marginBottom: 6, border: `1.5px solid ${B.grayMd}`, borderLeft: `4px solid ${B.teal}` }}>
+                  <span style={{ background: B.navy, color: 'white', padding: '2px 8px', borderRadius: 5, fontSize: 11, fontWeight: 700 }}>{d.code}</span>
+                  <span style={{ flex: 1, fontSize: 13 }}>{d.desc}</span>
+                  <button onClick={() => setDiagnosticos(p => p.filter((_, j) => j !== i))}
+                    style={{ background: B.red + '22', color: B.red, border: 'none', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
+                </div>
+              ))}
+              <input value={busquedaCie} onChange={e => buscarCie10(e.target.value)} placeholder="Buscar CIE-10..."
+                style={{ width: '100%', padding: '10px 14px', border: `1.5px solid ${B.grayMd}`, borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', marginTop: 10, fontFamily: 'inherit' }} />
+              {buscandoCie && <p style={{ fontSize: 11, color: B.teal, margin: '6px 0' }}>Buscando...</p>}
+              {busquedaCie && !buscandoCie && (
+                <div style={{ background: B.white, borderRadius: 8, border: `1.5px solid ${B.grayMd}`, maxHeight: 250, overflowY: 'auto', marginTop: 4 }}>
+                  {cie10Results.length === 0 ? (
+                    <div style={{ padding: '10px 14px' }}>
+                      <p style={{ fontSize: 12, color: B.gray, margin: '0 0 6px' }}>No encontrado.</p>
+                      <button onClick={() => addDiag({ code: busquedaCie.toUpperCase(), desc: busquedaCie })}
+                        style={{ padding: '5px 12px', background: B.teal, color: 'white', border: 'none', borderRadius: 5, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>+ Agregar manualmente</button>
+                    </div>
+                  ) : cie10Results.map((d, i) => (
+                    <div key={i} onClick={() => addDiag({ code: d.codigo, desc: d.descripcion })}
+                      style={{ display: 'flex', gap: 10, padding: '9px 14px', cursor: 'pointer', borderBottom: `1px solid ${B.grayLt}` }}
+                      onMouseEnter={e => e.currentTarget.style.background = B.grayLt}
+                      onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                      <span style={{ background: B.navy, color: 'white', padding: '2px 7px', borderRadius: 5, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{d.codigo}</span>
+                      <span style={{ fontSize: 12 }}>{d.descripcion}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'medicamentos' && (
+            <div>
+              {medicamentos.map((m, i) => (
+                <div key={m.id || i} style={{ background: B.white, borderRadius: 8, border: `1.5px solid ${B.grayMd}`, padding: '10px 14px', marginBottom: 8, borderLeft: `4px solid ${B.green}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: 13, color: B.navy, margin: '0 0 3px' }}>{m.nombre}</p>
+                    <p style={{ fontSize: 11, color: B.teal, margin: 0 }}>{m.dosis} · {m.frecuencia} · {m.duracion}</p>
+                  </div>
+                  <button onClick={() => setMedicamentos(p => p.filter((_, j) => j !== i))}
+                    style={{ background: B.red + '22', color: B.red, border: 'none', borderRadius: 5, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
+                </div>
+              ))}
+              <div style={{ background: B.white, borderRadius: 8, border: `1.5px solid ${B.grayMd}`, padding: '14px 16px', marginTop: 10 }}>
+                <p style={{ fontWeight: 600, fontSize: 11, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>+ Agregar medicamento</p>
+                {[['Nombre *', 'nombre', '100%'], ['Dosis', 'dosis', '48%'], ['Frecuencia', 'frecuencia', '48%'], ['Duración', 'duracion', '48%'], ['Indicaciones', 'indicaciones', '48%']].map(([l, k, w]) => (
+                  <div key={k} style={{ flex: `0 0 ${w}`, marginBottom: 10, display: 'inline-block', width: w, paddingRight: w === '48%' ? '2%' : 0, boxSizing: 'border-box' }}>
+                    <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: B.teal, textTransform: 'uppercase', marginBottom: 3 }}>{l}</label>
+                    <input value={nuevoMed[k]} onChange={e => setNuevoMed(p => ({ ...p, [k]: e.target.value }))} placeholder={l}
+                      style={{ width: '100%', padding: '7px 9px', border: `1.5px solid ${B.grayMd}`, borderRadius: 5, fontSize: 12, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                  <button onClick={addMed} style={{ padding: '7px 18px', background: B.green, color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>+ Agregar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {tab === 'indicaciones' && (
+            <div>
+              <CTextArea label="Indicaciones y recomendaciones" value={indicaciones} onChange={setIndicaciones} rows={6} />
+              <div style={{ marginTop: 14 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Próxima cita</label>
+                <input type="date" value={proximaCita} onChange={e => setProximaCita(e.target.value)}
+                  style={{ padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+                <button onClick={guardar} disabled={guardando}
+                  style={{ padding: '10px 28px', background: guardando ? '#9AA5B1' : B.teal, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: guardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  {guardando ? 'Guardando...' : '💾 Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

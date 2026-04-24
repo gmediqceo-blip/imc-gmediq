@@ -460,42 +460,75 @@ export function generarGuia(paciente, valoracion, plan, planEjercicios, ejercici
 }
 
 // ─── COMPONENTE BOTONES DE DOCUMENTOS ────────────────────────────────────────
-export function BotonesDocumentos({ paciente, valoracion, plan, planEjercicios, ejercicios }) {
+export function BotonesDocumentos({ paciente, valoraciones, planes, ejercicios }) {
+  const { useState } = require('react');
+  const [valIdx, setValIdx] = useState(0);
+  const [planIdx, setPlanIdx] = useState(0);
+
+  const valoracion = valoraciones?.[valIdx] || null;
+  const planSeleccionado = planes?.[planIdx] || null;
+  const planEjercicios = planSeleccionado?.plan_ejercicios || [];
+
   const descargar = (html, nombre) => {
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = nombre;
-    document.body.appendChild(a);
-    a.click();
+    a.href = url; a.download = nombre;
+    document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
+  const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+
   return (
-    <div style={{ background: 'white', border: `1.5px solid #DDE3EA`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-      <p style={{ fontWeight: 700, fontSize: 12, color: '#0B1F3B', margin: '0 0 6px' }}>📄 Documentos para el paciente</p>
-      <p style={{ fontSize: 11, color: '#6E6E70', margin: '0 0 12px' }}>
+    <div style={{ background: 'white', border: '1.5px solid #DDE3EA', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+      <p style={{ fontWeight: 700, fontSize: 12, color: '#0B1F3B', margin: '0 0 4px' }}>📄 Documentos para el paciente</p>
+      <p style={{ fontSize: 11, color: '#6E6E70', margin: '0 0 14px' }}>
         Descarga el HTML → ábrelo en el navegador → Ctrl+P → Guardar como PDF
       </p>
+
+      {/* Selectores */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div>
+          <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Valoración a usar</label>
+          <select value={valIdx} onChange={e => setValIdx(Number(e.target.value))}
+            style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #DDE3EA', borderRadius: 6, fontSize: 12, outline: 'none', fontFamily: 'inherit' }}>
+            {(valoraciones || []).map((v, i) => (
+              <option key={v.id} value={i}>{fmtShort(v.fecha)} · {v.terapeuta_nombre || '—'}</option>
+            ))}
+            {!valoraciones?.length && <option value={0}>Sin valoraciones</option>}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#4B647A', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Plan a incluir</label>
+          <select value={planIdx} onChange={e => setPlanIdx(Number(e.target.value))}
+            style={{ width: '100%', padding: '7px 10px', border: '1.5px solid #DDE3EA', borderRadius: 6, fontSize: 12, outline: 'none', fontFamily: 'inherit' }}>
+            {(planes || []).map((p, i) => (
+              <option key={p.id} value={i}>{fmtShort(p.fecha)} · Fase {p.fase} · {p.entorno === 'gym' ? 'Gimnasio' : 'Casa'}</option>
+            ))}
+            {!planes?.length && <option value={0}>Sin planes</option>}
+          </select>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {valoracion && (
-          <button
-            onClick={() => descargar(generarInforme(paciente, valoracion), `IMC_Informe_${paciente.nombre}_${paciente.apellido}.html`)}
+        {valoracion ? (
+          <button onClick={() => descargar(generarInforme(paciente, valoracion), `IMC_Informe_${paciente.nombre}_${paciente.apellido}.html`)}
             style={{ padding: '9px 18px', background: '#1E7CB5', color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             📋 Informe de condición
           </button>
+        ) : (
+          <p style={{ fontSize: 11, color: '#C25A00' }}>⚠ Registra una valoración para habilitar los documentos</p>
         )}
-        {plan && valoracion && (
-          <button
-            onClick={() => descargar(generarGuia(paciente, valoracion, plan, planEjercicios, ejercicios), `IMC_Guia_${paciente.nombre}_${paciente.apellido}.html`)}
+        {planSeleccionado && valoracion ? (
+          <button onClick={() => descargar(generarGuia(paciente, valoracion, planSeleccionado, planEjercicios, ejercicios), `IMC_Guia_${paciente.nombre}_${paciente.apellido}.html`)}
             style={{ padding: '9px 18px', background: '#0B1F3B', color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             🏋️ Guía de entrenamiento
           </button>
+        ) : (
+          valoracion && <p style={{ fontSize: 11, color: '#6E6E70' }}>Crea un plan de ejercicio para habilitar la guía</p>
         )}
-        {!valoracion && <p style={{ fontSize: 11, color: '#C25A00' }}>⚠ Registra una valoración para habilitar los documentos</p>}
-        {valoracion && !plan && <p style={{ fontSize: 11, color: '#6E6E70' }}>Crea un plan de ejercicio para habilitar la guía</p>}
       </div>
     </div>
   );
