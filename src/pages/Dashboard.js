@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import Pacientes from '../components/Pacientes';
 import PacienteDetalle from '../components/PacienteDetalle';
 import Usuarios from './Usuarios';
+import Agenda from './Agenda';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -53,6 +54,7 @@ export default function Dashboard({ session }) {
           {[
             { key: 'pacientes', label: '👥 Pacientes' },
             { key: 'banco_ejercicios', label: '🏋️ Ejercicios' },
+            { key: 'agenda', label: '📅 Agenda' },
             ...(usuario?.rol === 'admin' ? [{ key: 'usuarios', label: '👤 Usuarios' }] : []),
           ].map(item => (
             <button key={item.key} onClick={() => setScreen(item.key)}
@@ -91,6 +93,7 @@ export default function Dashboard({ session }) {
           <PacienteDetalle paciente={pacienteActivo} onVolver={volverAPacientes} usuario={usuario} />
         )}
         {screen === 'banco_ejercicios' && <BancoEjercicios usuario={usuario} />}
+        {screen === 'agenda' && <Agenda usuario={usuario} onAbrirPaciente={abrirPaciente} />}
         {screen === 'usuarios' && <Usuarios usuarioActual={usuario} />}
       </div>
 
