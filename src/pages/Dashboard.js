@@ -207,17 +207,15 @@ function BancoEjercicios({ usuario }) {
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [catFiltro, setCatFiltro] = useState('all');
-  const [nuevo, setNuevo] = useState({ nombre: '', categoria: 'aerobico', entorno: 'gym', musculos: '', nivel: 'bajo', unidad: 'reps' });
-  const [guardando, setGuardando] = useState(false);
+  const [modalNuevo, setModalNuevo] = useState(false);
+  const [ejercicioEditar, setEjercicioEditar] = useState(null);
   const [toast, setToast] = useState(null);
 
-  const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
+  const B2 = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
   const CAT_LABELS = { aerobico: 'Aeróbico', tren_inferior: 'Tren Inferior', tren_superior: 'Tren Superior', core: 'Core', respiratorio: 'Respiratorio', movilidad: 'Movilidad' };
-  const CAT_COLORS = { aerobico: B.blue, tren_inferior: B.navy, tren_superior: B.teal, core: B.orange, respiratorio: '#7B2D8B', movilidad: '#7B2D8B' };
+  const CAT_COLORS = { aerobico: B2.blue, tren_inferior: B2.navy, tren_superior: B2.teal, core: B2.orange, respiratorio: '#7B2D8B', movilidad: '#7B2D8B' };
 
-  useEffect(() => {
-    fetchEjercicios();
-  }, []);
+  useEffect(() => { fetchEjercicios(); }, []);
 
   const fetchEjercicios = async () => {
     const { data } = await supabase.from('ejercicios').select('*').eq('activo', true).order('categoria').order('nombre');
@@ -225,84 +223,271 @@ function BancoEjercicios({ usuario }) {
     setLoading(false);
   };
 
-  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+  const showToast = (msg, color = B2.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
 
-  const agregarEjercicio = async () => {
-    if (!nuevo.nombre.trim()) return;
+  const filtrados = ejercicios.filter(e =>
+    e.nombre.toLowerCase().includes(busqueda.toLowerCase()) &&
+    (catFiltro === 'all' || e.categoria === catFiltro)
+  );
+
+  const eliminarEjercicio = async (id) => {
+    await supabase.from('ejercicios').update({ activo: false }).eq('id', id);
+    fetchEjercicios();
+    showToast('Ejercicio eliminado', B2.red);
+  };
+
+  return (
+    <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: B2.navy, margin: 0 }}>🏋️ Banco de Ejercicios</h2>
+        <button onClick={() => setModalNuevo(true)}
+          style={{ padding: '9px 20px', background: B2.teal, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + Nuevo ejercicio
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar ejercicio..."
+          style={{ flex: 1, minWidth: 200, padding: '9px 14px', borderRadius: 8, border: `1.5px solid ${B2.grayMd}`, fontSize: 13, outline: 'none', fontFamily: 'inherit' }} />
+        <select value={catFiltro} onChange={e => setCatFiltro(e.target.value)}
+          style={{ padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${B2.grayMd}`, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+          <option value="all">Todas las categorías</option>
+          {Object.entries(CAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <span style={{ padding: '9px 14px', background: B2.grayLt, borderRadius: 8, fontSize: 12, color: B2.gray, fontWeight: 600 }}>
+          {filtrados.length} ejercicios
+        </span>
+      </div>
+
+      {/* Grid de ejercicios */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 60, color: B2.gray }}>Cargando ejercicios...</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 12 }}>
+          {filtrados.map(ex => {
+            const col = CAT_COLORS[ex.categoria] || B2.teal;
+            return (
+              <div key={ex.id} style={{ background: B2.white, borderRadius: 10, border: `1.5px solid ${B2.grayMd}`, overflow: 'hidden', borderTop: `3px solid ${col}` }}>
+                {/* Imagen */}
+                {ex.imagen_url ? (
+                  <img src={ex.imagen_url} alt={ex.nombre}
+                    style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
+                    onError={e => { e.target.style.display = 'none'; }} />
+                ) : (
+                  <div style={{ width: '100%', height: 100, background: col + '11', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>
+                    {ex.categoria === 'aerobico' ? '🚴' : ex.categoria === 'core' ? '💪' : ex.categoria === 'movilidad' ? '🧘' : ex.categoria === 'respiratorio' ? '🫁' : ex.categoria === 'tren_inferior' ? '🦵' : '💪'}
+                  </div>
+                )}
+                <div style={{ padding: '10px 12px' }}>
+                  <p style={{ fontWeight: 700, fontSize: 13, color: B2.navy, margin: '0 0 6px' }}>{ex.nombre}</p>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                    <span style={{ fontSize: 9, background: col + '22', color: col, padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>{CAT_LABELS[ex.categoria]}</span>
+                    <span style={{ fontSize: 9, color: B2.gray, background: B2.grayLt, padding: '2px 6px', borderRadius: 8 }}>{ex.entorno === 'gym' ? '🏋️ Gym' : ex.entorno === 'casa' ? '🏠 Casa' : '✓ Ambos'}</span>
+                    <span style={{ fontSize: 9, color: B2.gray, background: B2.grayLt, padding: '2px 6px', borderRadius: 8 }}>{ex.nivel}</span>
+                  </div>
+                  {ex.descripcion && <p style={{ fontSize: 10, color: B2.gray, margin: '0 0 8px', lineHeight: 1.4 }}>{ex.descripcion.substring(0, 80)}...</p>}
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setEjercicioEditar(ex)}
+                      style={{ padding: '4px 10px', background: B2.blue + '11', color: B2.blue, border: `1px solid ${B2.blue}33`, borderRadius: 5, fontWeight: 600, fontSize: 10, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      ✏️ Editar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modalNuevo && (
+        <ModalEjercicio
+          onClose={() => setModalNuevo(false)}
+          onGuardado={() => { fetchEjercicios(); setModalNuevo(false); showToast('Ejercicio agregado ✓'); }}
+        />
+      )}
+
+      {ejercicioEditar && (
+        <ModalEjercicio
+          ejercicio={ejercicioEditar}
+          onClose={() => setEjercicioEditar(null)}
+          onGuardado={() => { fetchEjercicios(); setEjercicioEditar(null); showToast('Ejercicio actualizado ✓'); }}
+          onEliminar={() => { eliminarEjercicio(ejercicioEditar.id); setEjercicioEditar(null); }}
+        />
+      )}
+
+      {toast && <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: toast.color, color: 'white', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
+    </div>
+  );
+}
+
+function ModalEjercicio({ ejercicio, onClose, onGuardado, onEliminar }) {
+  const isEdit = !!ejercicio;
+  const B2 = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
+  const CAT_LABELS = { aerobico: 'Aeróbico', tren_inferior: 'Tren Inferior', tren_superior: 'Tren Superior', core: 'Core', respiratorio: 'Respiratorio', movilidad: 'Movilidad' };
+
+  const [nombre, setNombre] = useState(ejercicio?.nombre || '');
+  const [categoria, setCategoria] = useState(ejercicio?.categoria || 'aerobico');
+  const [entorno, setEntorno] = useState(ejercicio?.entorno || 'gym');
+  const [nivel, setNivel] = useState(ejercicio?.nivel || 'bajo');
+  const [musculos, setMusculos] = useState(ejercicio?.musculos || '');
+  const [descripcion, setDescripcion] = useState(ejercicio?.descripcion || '');
+  const [imagenUrl, setImagenUrl] = useState(ejercicio?.imagen_url || '');
+  const [imagenFile, setImagenFile] = useState(null);
+  const [preview, setPreview] = useState(ejercicio?.imagen_url || '');
+  const [guardando, setGuardando] = useState(false);
+  const [confirmEliminar, setConfirmEliminar] = useState(false);
+  const [subiendo, setSubiendo] = useState(false);
+
+  const handleImagen = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImagenFile(file);
+    setPreview(URL.createObjectURL(file));
+  };
+
+  const guardar = async () => {
+    if (!nombre.trim()) return;
     setGuardando(true);
-    const { error } = await supabase.from('ejercicios').insert([nuevo]);
-    if (!error) { await fetchEjercicios(); setNuevo({ nombre: '', categoria: 'aerobico', entorno: 'gym', musculos: '', nivel: 'bajo', unidad: 'reps' }); showToast('Ejercicio agregado ✓'); }
+
+    let urlFinal = imagenUrl;
+
+    // Upload image if selected
+    if (imagenFile) {
+      setSubiendo(true);
+      const ext = imagenFile.name.split('.').pop();
+      const path = `${Date.now()}.${ext}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('ejercicios')
+        .upload(path, imagenFile, { upsert: true });
+
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('ejercicios').getPublicUrl(path);
+        urlFinal = urlData.publicUrl;
+      }
+      setSubiendo(false);
+    }
+
+    const data = {
+      nombre: nombre.trim(),
+      categoria,
+      entorno,
+      nivel,
+      musculos: musculos || null,
+      descripcion: descripcion || null,
+      imagen_url: urlFinal || null,
+      activo: true,
+    };
+
+    if (isEdit) {
+      await supabase.from('ejercicios').update(data).eq('id', ejercicio.id);
+    } else {
+      await supabase.from('ejercicios').insert([data]);
+    }
+
+    onGuardado();
     setGuardando(false);
   };
 
-  const filtrados = ejercicios.filter(e => {
-    const ms = e.nombre.toLowerCase().includes(busqueda.toLowerCase());
-    const mc = catFiltro === 'all' || e.categoria === catFiltro;
-    return ms && mc;
-  });
-
-  const F = ({ label, value, onChange, opts, half }) => (
-    <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
+  const Field = ({ label, value, onChange, type = 'text', opts, full }) => (
+    <div style={{ gridColumn: full ? '1 / -1' : undefined, marginBottom: 12 }}>
+      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B2.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{label}</label>
       {opts ? (
-        <select value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}>
+        <select value={value} onChange={e => onChange(e.target.value)}
+          style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B2.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
           {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
         </select>
       ) : (
-        <input value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+        <input type={type} value={value} onChange={e => onChange(e.target.value)}
+          style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B2.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
       )}
     </div>
   );
 
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
-      <h2 style={{ fontSize: 18, fontWeight: 800, color: B.navy, margin: '0 0 20px' }}>Banco de Ejercicios</h2>
-
-      {/* Agregar */}
-      <div style={{ background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}`, padding: '20px 22px', marginBottom: 20 }}>
-        <p style={{ fontWeight: 700, fontSize: 12, color: B.navy, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 14px' }}>➕ Agregar ejercicio</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-          <F label="Nombre *" value={nuevo.nombre} onChange={v => setNuevo(p => ({ ...p, nombre: v }))} />
-          <F label="Categoría" value={nuevo.categoria} onChange={v => setNuevo(p => ({ ...p, categoria: v }))} opts={Object.entries(CAT_LABELS).map(([k, v]) => ({ v: k, l: v }))} half />
-          <F label="Entorno" value={nuevo.entorno} onChange={v => setNuevo(p => ({ ...p, entorno: v }))} opts={[{ v: 'gym', l: '🏋️ Gimnasio' }, { v: 'casa', l: '🏠 Casa' }, { v: 'ambos', l: '✓ Ambos' }]} half />
-          <F label="Músculos" value={nuevo.musculos} onChange={v => setNuevo(p => ({ ...p, musculos: v }))} half />
-          <F label="Nivel" value={nuevo.nivel} onChange={v => setNuevo(p => ({ ...p, nivel: v }))} opts={[{ v: 'bajo', l: 'Bajo' }, { v: 'medio', l: 'Medio' }, { v: 'alto', l: 'Alto' }]} half />
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+      <div style={{ background: B2.white, borderRadius: 14, width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ background: B2.navy, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <p style={{ color: 'white', fontWeight: 700, fontSize: 15, margin: 0 }}>{isEdit ? '✏️ Editar ejercicio' : '+ Nuevo ejercicio'}</p>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', fontSize: 20, cursor: 'pointer', borderRadius: 6, padding: '3px 9px' }}>✕</button>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={agregarEjercicio} disabled={guardando}
-            style={{ padding: '9px 22px', background: B.teal, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {guardando ? 'Guardando...' : 'Agregar ✓'}
-          </button>
-        </div>
-      </div>
 
-      {/* Filtros */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar ejercicio..."
-          style={{ flex: 1, padding: '9px 14px', borderRadius: 8, border: `1.5px solid ${B.grayMd}`, fontSize: 13, outline: 'none' }} />
-        <select value={catFiltro} onChange={e => setCatFiltro(e.target.value)}
-          style={{ padding: '9px 12px', borderRadius: 8, border: `1.5px solid ${B.grayMd}`, fontSize: 13, outline: 'none' }}>
-          <option value="all">Todas</option>
-          {Object.entries(CAT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-      </div>
-
-      {/* Lista */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
-        {filtrados.map(ex => (
-          <div key={ex.id} style={{ background: B.white, borderRadius: 10, border: `1.5px solid ${B.grayMd}`, padding: '12px 14px', borderLeft: `4px solid ${CAT_COLORS[ex.categoria] || B.teal}` }}>
-            <p style={{ fontWeight: 700, fontSize: 13, color: B.navy, margin: '0 0 5px' }}>{ex.nombre}</p>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
-              <span style={{ fontSize: 9, background: (CAT_COLORS[ex.categoria] || B.teal) + '22', color: CAT_COLORS[ex.categoria] || B.teal, padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>{CAT_LABELS[ex.categoria]}</span>
-              <span style={{ fontSize: 9, color: B.gray, padding: '1px 4px' }}>{ex.entorno === 'gym' ? '🏋️' : ex.entorno === 'casa' ? '🏠' : '✓'}</span>
-              <span style={{ fontSize: 9, color: B.gray, padding: '1px 4px' }}>{ex.nivel}</span>
+        <div style={{ padding: '20px 22px', overflowY: 'auto' }}>
+          {/* Imagen */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B2.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+              Imagen de referencia
+            </label>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              {preview ? (
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <img src={preview} alt="Preview" style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 8, border: `1.5px solid ${B2.grayMd}` }}
+                    onError={e => { e.target.style.display = 'none'; }} />
+                  <button onClick={() => { setPreview(''); setImagenFile(null); setImagenUrl(''); }}
+                    style={{ position: 'absolute', top: -6, right: -6, background: B2.red, color: 'white', border: 'none', borderRadius: '50%', width: 20, height: 20, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✕</button>
+                </div>
+              ) : (
+                <div style={{ width: 120, height: 90, background: B2.grayLt, borderRadius: 8, border: `2px dashed ${B2.grayMd}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 28 }}>🏋️</span>
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', padding: '9px 14px', background: B2.blue, color: 'white', borderRadius: 7, fontWeight: 600, fontSize: 12, cursor: 'pointer', textAlign: 'center', marginBottom: 8 }}>
+                  📁 Subir imagen
+                  <input type="file" accept="image/*" onChange={handleImagen} style={{ display: 'none' }} />
+                </label>
+                <p style={{ fontSize: 10, color: B2.gray, margin: '0 0 6px' }}>JPG, PNG o WebP. Máx 2MB.</p>
+                <p style={{ fontSize: 9, color: B2.gray, margin: '0 0 4px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>O pega una URL:</p>
+                <input value={imagenUrl} onChange={e => { setImagenUrl(e.target.value); setPreview(e.target.value); setImagenFile(null); }}
+                  placeholder="https://..."
+                  style={{ width: '100%', padding: '6px 9px', border: `1.5px solid ${B2.grayMd}`, borderRadius: 6, fontSize: 11, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+              </div>
             </div>
-            {ex.musculos && <p style={{ fontSize: 11, color: B.gray, margin: 0 }}>{ex.musculos}</p>}
           </div>
-        ))}
-      </div>
 
-      {toast && <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: toast.color, color: 'white', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+            <Field label="Nombre *" value={nombre} onChange={setNombre} full />
+            <Field label="Categoría" value={categoria} onChange={setCategoria} opts={Object.entries(CAT_LABELS).map(([k, v]) => ({ v: k, l: v }))} />
+            <Field label="Entorno" value={entorno} onChange={setEntorno} opts={[{ v: 'gym', l: '🏋️ Gimnasio' }, { v: 'casa', l: '🏠 Casa' }, { v: 'ambos', l: '✓ Ambos' }]} />
+            <Field label="Nivel" value={nivel} onChange={setNivel} opts={[{ v: 'bajo', l: 'Bajo' }, { v: 'medio', l: 'Medio' }, { v: 'alto', l: 'Alto' }]} />
+            <Field label="Músculos trabajados" value={musculos} onChange={setMusculos} full />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B2.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Descripción / Instrucciones</label>
+            <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3}
+              placeholder="Describe cómo ejecutar el ejercicio correctamente..."
+              style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B2.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {isEdit && !confirmEliminar && (
+              <button onClick={() => setConfirmEliminar(true)}
+                style={{ padding: '8px 14px', background: B2.red + '11', color: B2.red, border: `1px solid ${B2.red}33`, borderRadius: 7, fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                🗑 Eliminar
+              </button>
+            )}
+            {isEdit && confirmEliminar && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: B2.red, fontWeight: 600 }}>¿Confirmar?</span>
+                <button onClick={onEliminar} style={{ padding: '6px 12px', background: B2.red, color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Sí</button>
+                <button onClick={() => setConfirmEliminar(false)} style={{ padding: '6px 12px', background: B2.grayLt, color: B2.gray, border: `1px solid ${B2.grayMd}`, borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
+              </div>
+            )}
+            {!isEdit && <div />}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={onClose}
+                style={{ padding: '9px 18px', background: B2.grayLt, color: B2.gray, border: `1px solid ${B2.grayMd}`, borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancelar
+              </button>
+              <button onClick={guardar} disabled={guardando || subiendo}
+                style={{ padding: '9px 22px', background: guardando || subiendo ? '#9AA5B1' : B2.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {subiendo ? 'Subiendo imagen...' : guardando ? 'Guardando...' : isEdit ? '💾 Guardar cambios' : '+ Agregar ejercicio'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
