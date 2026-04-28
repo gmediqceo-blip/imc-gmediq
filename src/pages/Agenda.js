@@ -16,7 +16,7 @@ const SERVICIOS = [
 
 const ESTADOS = [
   { value: 'pendiente', label: 'Pendiente', color: B.orange },
-  { value: 'confirmada', label: 'Confirmada', color: B.blue },
+  { value: 'preatendido', label: 'Pre-atendido', color: B.blue },
   { value: 'atendida', label: 'Atendida', color: B.green },
   { value: 'cancelada', label: 'Cancelada', color: B.red },
 ];
@@ -44,6 +44,7 @@ export default function Agenda({ usuario, onAbrirPaciente }) {
   const [filtroProf, setFiltroProf] = useState('todos');
 
   const isAdmin = usuario?.rol === 'admin' || usuario?.rol === 'secretaria';
+  const puedeCrearCitas = isAdmin || usuario?.rol === 'fisioterapeuta' || usuario?.rol === 'medico' || usuario?.rol === 'nutricionista';
   const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 3000); };
 
   const fetchCitas = useCallback(async () => {
@@ -110,7 +111,7 @@ export default function Agenda({ usuario, onAbrirPaciente }) {
             style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 7, fontWeight: 600, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
             Hoy
           </button>
-          {isAdmin && (
+          {puedeCrearCitas && (
             <button onClick={() => setModalNueva(true)}
               style={{ padding: '8px 18px', background: B.blue, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
               + Nueva cita
@@ -147,7 +148,7 @@ export default function Agenda({ usuario, onAbrirPaciente }) {
           <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
             <p style={{ fontSize: 40, marginBottom: 12 }}>📅</p>
             <p style={{ color: B.gray, fontSize: 14, marginBottom: 16 }}>No hay citas agendadas para este día.</p>
-            {isAdmin && (
+            {puedeCrearCitas && (
               <button onClick={() => setModalNueva(true)}
                 style={{ padding: '10px 22px', background: B.blue, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
                 + Agendar cita
@@ -188,6 +189,7 @@ export default function Agenda({ usuario, onAbrirPaciente }) {
       {modalNueva && (
         <ModalCita
           usuario={usuario}
+          isAdmin={isAdmin}
           fecha={fecha}
           usuarios={usuarios}
           onClose={() => setModalNueva(false)}
@@ -277,13 +279,14 @@ function CitaCard({ cita, isAdmin, onEditar, onAbrirPaciente, onCambiarEstado })
               📋 Abrir expediente
             </button>
           )}
+
           {cita.estado === 'pendiente' && (
-            <button onClick={() => onCambiarEstado('atendida')}
-              style={{ padding: '6px 14px', background: B.green + '22', color: B.green, border: `1px solid ${B.green}44`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-              ✓ Atendida
+            <button onClick={() => onCambiarEstado('preatendido')}
+              style={{ padding: '6px 14px', background: B.blue + '22', color: B.blue, border: `1px solid ${B.blue}44`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+              → Pre-atendido
             </button>
           )}
-          {cita.estado === 'confirmada' && (
+          {cita.estado === 'preatendido' && (
             <button onClick={() => onCambiarEstado('atendida')}
               style={{ padding: '6px 14px', background: B.green + '22', color: B.green, border: `1px solid ${B.green}44`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
               ✓ Atendida
@@ -302,11 +305,12 @@ function CitaCard({ cita, isAdmin, onEditar, onAbrirPaciente, onCambiarEstado })
 }
 
 // ─── MODAL NUEVA CITA ─────────────────────────────────────────────────────────
-function ModalCita({ usuario, fecha, usuarios, onClose, onGuardado }) {
+function ModalCita({ usuario, isAdmin, fecha, usuarios, onClose, onGuardado }) {
   const [fechaCita, setFechaCita] = useState(fecha);
   const [hora, setHora] = useState('08:00');
   const [duracion, setDuracion] = useState('60');
   const [servicio, setServicio] = useState('consulta_medica');
+  // No-admin users can only assign to themselves
   const [profesionalId, setProfesionalId] = useState(usuario.id);
   const [notas, setNotas] = useState('');
   // Paciente
@@ -348,6 +352,7 @@ function ModalCita({ usuario, fecha, usuarios, onClose, onGuardado }) {
   };
 
   const isAdmin = usuario?.rol === 'admin' || usuario?.rol === 'secretaria';
+  const puedeCrearCitas = isAdmin || usuario?.rol === 'fisioterapeuta' || usuario?.rol === 'medico' || usuario?.rol === 'nutricionista';
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
@@ -393,14 +398,18 @@ function ModalCita({ usuario, fecha, usuarios, onClose, onGuardado }) {
           </div>
 
           {/* Profesional */}
-          {isAdmin && (
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Profesional asignado</label>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Profesional asignado</label>
+            {isAdmin ? (
               <select value={profesionalId} onChange={e => setProfesionalId(e.target.value)} style={inputStyle}>
                 {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre} {u.apellido} — {u.especialidad || u.rol}</option>)}
               </select>
-            </div>
-          )}
+            ) : (
+              <div style={{ padding: '9px 12px', background: B.grayLt, borderRadius: 6, border: `1.5px solid ${B.grayMd}`, fontSize: 13, color: B.navy, fontWeight: 600 }}>
+                {usuario.nombre} {usuario.apellido} <span style={{ fontSize: 11, color: B.gray, fontWeight: 400 }}>(tú)</span>
+              </div>
+            )}
+          </div>
 
           {/* Buscar paciente */}
           <div style={{ marginBottom: 14 }}>
