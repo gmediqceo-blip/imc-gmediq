@@ -387,37 +387,70 @@ export function generarGuia(paciente, valoracion, plan, planEjercicios, ejercici
       ${DAYS.map(d => dayCell(d)).join('')}
     </div>
 
-    <!-- Tabla de ejercicios -->
+    <!-- Ejercicios con imágenes -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="width:3px;height:18px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
       <h2 style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Ejercicios prescritos</h2>
       <div style="flex:1;height:1px;background:#DDE3EA;"></div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+      ${todosEjs.map((pe, i) => {
+        const ex = exById[pe.ejercicio_id];
+        if (!ex) return '';
+        const col = CAT_COLORS[ex.categoria] || '#4B647A';
+        return `
+        <div style="border:1.5px solid #DDE3EA;border-radius:10px;overflow:hidden;border-top:3px solid ${col};">
+          <div style="display:flex;gap:0;">
+            ${ex.imagen_url ? `<img src="${ex.imagen_url}" alt="${ex.nombre}"
+              style="width:110px;height:110px;object-fit:cover;flex-shrink:0;"
+              onerror="this.style.display='none'">` : ''}
+            <div style="padding:10px 12px;flex:1;">
+              <div style="font-size:12px;font-weight:700;color:#0B1F3B;margin-bottom:4px;">${ex.nombre}</div>
+              <span style="background:${col}22;color:${col};padding:2px 7px;border-radius:10px;font-size:8px;font-weight:700;text-transform:uppercase;display:inline-block;margin-bottom:6px;">${CAT_LABELS[ex.categoria]?.split(' ')[0] || ex.categoria}</span>
+              <div style="display:flex;gap:6px;margin-bottom:6px;">
+                <div style="background:#F4F6F8;border-radius:6px;padding:4px 8px;text-align:center;flex:1;">
+                  <div style="font-size:8px;color:#6E6E70;text-transform:uppercase;letter-spacing:.5px;">Series</div>
+                  <div style="font-size:14px;font-weight:700;color:#0B1F3B;">${pe.series || '—'}</div>
+                </div>
+                <div style="background:#F4F6F8;border-radius:6px;padding:4px 8px;text-align:center;flex:1;">
+                  <div style="font-size:8px;color:#6E6E70;text-transform:uppercase;letter-spacing:.5px;">Reps</div>
+                  <div style="font-size:14px;font-weight:700;color:#0B1F3B;">${pe.repeticiones || '—'}</div>
+                </div>
+                ${pe.carga ? `<div style="background:${col}11;border-radius:6px;padding:4px 8px;text-align:center;flex:1;">
+                  <div style="font-size:8px;color:${col};text-transform:uppercase;letter-spacing:.5px;">Carga</div>
+                  <div style="font-size:11px;font-weight:700;color:${col};">${pe.carga}</div>
+                </div>` : ''}
+              </div>
+              ${pe.nota ? `<div style="font-size:9px;color:#4B647A;font-style:italic;line-height:1.4;">${pe.nota}</div>` : ''}
+            </div>
+          </div>
+          ${ex.descripcion ? `<div style="padding:7px 12px;background:#F9FAFB;border-top:1px solid #EEF0F2;font-size:9px;color:#4B647A;line-height:1.5;">${ex.descripcion}</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>
+    <!-- Tabla resumen -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px;">
       <thead>
         <tr style="background:#0B1F3B;">
-          <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.8px;border-radius:6px 0 0 0;width:28%;">Ejercicio</th>
-          <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.8px;width:12%;">Categoría</th>
-          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.8px;width:8%;">Series</th>
-          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.8px;width:12%;">Reps/Tiempo</th>
-          <th style="padding:7px 10px;text-align:center;font-size:9px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.8px;width:12%;">Carga/FC</th>
-          <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:600;color:white;text-transform:uppercase;letter-spacing:.8px;border-radius:0 6px 0 0;width:28%;">Nota</th>
+          <th style="padding:6px 10px;text-align:left;color:white;font-size:9px;text-transform:uppercase;letter-spacing:.8px;">Ejercicio</th>
+          <th style="padding:6px 10px;text-align:center;color:white;font-size:9px;text-transform:uppercase;letter-spacing:.8px;">Series</th>
+          <th style="padding:6px 10px;text-align:center;color:white;font-size:9px;text-transform:uppercase;letter-spacing:.8px;">Reps/Tiempo</th>
+          <th style="padding:6px 10px;text-align:center;color:white;font-size:9px;text-transform:uppercase;letter-spacing:.8px;">Carga/FC</th>
+          <th style="padding:6px 10px;text-align:left;color:white;font-size:9px;text-transform:uppercase;letter-spacing:.8px;">Nota</th>
         </tr>
       </thead>
       <tbody>
         ${todosEjs.map((pe, i) => {
           const ex = exById[pe.ejercicio_id];
           if (!ex) return '';
-          const col = CAT_COLORS[ex.categoria] || B.teal;
+          const col = CAT_COLORS[ex.categoria] || '#4B647A';
           const bg = i % 2 === 0 ? 'white' : '#F4F6F8';
-          return `
-          <tr style="border-bottom:1px solid #F4F6F8;background:${bg};">
-            <td style="padding:8px 10px;font-size:11px;font-weight:600;color:#0B1F3B;">${ex.nombre}</td>
-            <td style="padding:8px 10px;"><span style="background:${col}22;color:${col};padding:2px 7px;border-radius:10px;font-size:8px;font-weight:700;text-transform:uppercase;">${CAT_LABELS[ex.categoria]?.split(' ')[0] || ''}</span></td>
-            <td style="padding:8px 10px;text-align:center;font-size:11px;">${pe.series || '—'}</td>
-            <td style="padding:8px 10px;text-align:center;font-size:11px;">${pe.repeticiones || '—'} ${ex.unidad}</td>
-            <td style="padding:8px 10px;text-align:center;font-size:10px;color:#4B647A;">${pe.carga || '—'}</td>
-            <td style="padding:8px 10px;font-size:10px;color:#555;">${pe.nota || ex.musculos || ''}</td>
+          return `<tr style="border-bottom:1px solid #F4F6F8;background:${bg};">
+            <td style="padding:6px 10px;font-weight:600;color:#0B1F3B;">${ex.nombre}</td>
+            <td style="padding:6px 10px;text-align:center;">${pe.series || '—'}</td>
+            <td style="padding:6px 10px;text-align:center;">${pe.repeticiones || '—'} ${ex.unidad}</td>
+            <td style="padding:6px 10px;text-align:center;color:#4B647A;">${pe.carga || '—'}</td>
+            <td style="padding:6px 10px;color:#555;font-size:10px;">${pe.nota || ''}</td>
           </tr>`;
         }).join('')}
       </tbody>
