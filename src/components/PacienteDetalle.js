@@ -49,16 +49,25 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
   const lastV = valoraciones[0];
 
-  const tabs = [
-    { key: 'resumen', label: '📋 Resumen' },
-    { key: 'historial', label: '📅 Historial' },
-    { key: 'parametros', label: '📈 Parámetros' },
-    { key: 'fisioterapia', label: '🏃 Fisioterapia' },
-    { key: 'medico', label: '🩺 Médico' },
-    { key: 'nutricion', label: '🥗 Nutrición' },
-    { key: 'ejercicio', label: '🏋️ Plan ejercicio' },
-    { key: 'archivos', label: '📁 Archivos' },
+  // Control de acceso por rol
+  const rol = usuario?.rol;
+  const esFisio = rol === 'fisioterapeuta';
+  const esMedico = rol === 'medico';
+  const esNutricionista = rol === 'nutricionista';
+  const esAdmin = rol === 'admin' || rol === 'secretaria';
+  const esAdminOrMedico = esAdmin || esMedico;
+
+  const allTabs = [
+    { key: 'resumen', label: '📋 Resumen', roles: null }, // todos
+    { key: 'historial', label: '📅 Historial', roles: null },
+    { key: 'parametros', label: '📈 Parámetros', roles: null },
+    { key: 'fisioterapia', label: '🏃 Fisioterapia', roles: ['admin','secretaria','fisioterapeuta','medico'] },
+    { key: 'medico', label: '🩺 Médico', roles: ['admin','secretaria','medico'] },
+    { key: 'nutricion', label: '🥗 Nutrición', roles: ['admin','secretaria','nutricionista','medico'] },
+    { key: 'ejercicio', label: '🏋️ Plan ejercicio', roles: ['admin','secretaria','fisioterapeuta','medico'] },
+    { key: 'archivos', label: '📁 Archivos', roles: null },
   ];
+  const tabs = allTabs.filter(t => !t.roles || t.roles.includes(rol));
 
   return (
     <div style={{ fontFamily: "'Segoe UI', Arial, sans-serif", minHeight: '100vh', background: B.grayLt }}>
