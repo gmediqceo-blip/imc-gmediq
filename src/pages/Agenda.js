@@ -351,9 +351,6 @@ function ModalCita({ usuario, isAdmin, fecha, usuarios, onClose, onGuardado }) {
     setGuardando(false);
   };
 
-  const isAdmin = usuario?.rol === 'admin' || usuario?.rol === 'secretaria';
-  const puedeCrearCitas = isAdmin || usuario?.rol === 'fisioterapeuta' || usuario?.rol === 'medico' || usuario?.rol === 'nutricionista';
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
       <div style={{ background: B.white, borderRadius: 14, width: '100%', maxWidth: 540, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
