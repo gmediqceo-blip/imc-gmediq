@@ -49,11 +49,111 @@ export function generarInforme(paciente, valoracion) {
     };
   };
 
-  const z1 = { lo: valoracion.zona1_lo, hi: valoracion.zona1_hi } || getZona(35, 47);
-  const z2 = { lo: valoracion.zona2_lo, hi: valoracion.zona2_hi } || getZona(48, 67);
-  const z3 = { lo: valoracion.zona3_lo, hi: valoracion.zona3_hi } || getZona(68, 74);
+  const z1 = valoracion.zona1_lo ? { lo: valoracion.zona1_lo, hi: valoracion.zona1_hi } : getZona(35, 47);
+  const z2 = valoracion.zona2_lo ? { lo: valoracion.zona2_lo, hi: valoracion.zona2_hi } : getZona(48, 67);
+  const z3 = valoracion.zona3_lo ? { lo: valoracion.zona3_lo, hi: valoracion.zona3_hi } : getZona(68, 74);
 
-  const card = (label, val, unit, ref, desc, status) => {
+  const bmiVal = valoracion.bmi || (valoracion.peso && valoracion.talla
+    ? (parseFloat(valoracion.peso) / ((parseFloat(valoracion.talla) / 100) ** 2)).toFixed(1)
+    : null);
+
+  // ── 1. EDAD METABÓLICA ──────────────────────────────────────────────────────
+  // Estimada con VO2max usando ecuación ACSM (Tanaka)
+  const calcEdadMetabolica = () => {
+    if (!valoracion.vo2max || !age) return null;
+    const vo2 = parseFloat(valoracion.vo2max);
+    // VO2max normal para edad: 14.8 - 1.379*(age) + 0.451*(age^2)/100... 
+    // Simplificado: VO2max = 65 - 0.55*age → edad metab = (65 - VO2max) / 0.55
+    const edadMetab = Math.round((65 - vo2) / 0.55);
+    return Math.max(18, Math.min(80, edadMetab));
+  };
+  const edadMetabolica = calcEdadMetabolica();
+  const diffEdad = edadMetabolica ? edadMetabolica - age : null;
+
+  // ── 2. RIESGO CARDIOVASCULAR ─────────────────────────────────────────────────
+  const calcRiesgoCV = () => {
+    let puntos = 0;
+    if (bmiVal) {
+      if (parseFloat(bmiVal) > 35) puntos += 3;
+      else if (parseFloat(bmiVal) > 30) puntos += 2;
+      else if (parseFloat(bmiVal) > 25) puntos += 1;
+    }
+    if (valoracion.vo2max) {
+      if (parseFloat(valoracion.vo2max) < 20) puntos += 3;
+      else if (parseFloat(valoracion.vo2max) < 28) puntos += 2;
+      else if (parseFloat(valoracion.vo2max) < 35) puntos += 1;
+    }
+    if (valoracion.fc_reposo) {
+      if (parseInt(valoracion.fc_reposo) > 90) puntos += 2;
+      else if (parseInt(valoracion.fc_reposo) > 80) puntos += 1;
+    }
+    if (age > 55) puntos += 2;
+    else if (age > 45) puntos += 1;
+    if (valoracion.limitantes && /diab|hipert|obesidad/i.test(valoracion.limitantes)) puntos += 2;
+    if (puntos <= 2) return { nivel: 'Bajo', color: '#1A7A4A', bg: '#E8F5EE', desc: 'Bajo riesgo cardiovascular. Continúa con el protocolo normal.' };
+    if (puntos <= 5) return { nivel: 'Moderado', color: '#C25A00', bg: '#FFF3E0', desc: 'Riesgo cardiovascular moderado. Monitorear FC y SpO2 en cada sesión.' };
+    return { nivel: 'Alto', color: '#B02020', bg: '#FEF2F2', desc: 'Riesgo cardiovascular elevado. Se recomienda evaluación médica previa.' };
+  };
+  const riesgoCV = calcRiesgoCV();
+
+  // ── 3. METABOLISMO BASAL ─────────────────────────────────────────────────────
+  const calcTMB = () => {
+    if (!valoracion.peso || !valoracion.talla || !age) return null;
+    const p = parseFloat(valoracion.peso);
+    const t = parseFloat(valoracion.talla);
+    const sexo = paciente.sexo;
+    // Harris-Benedict
+    if (sexo === 'M') return Math.round(88.36 + (13.4 * p) + (4.8 * t) - (5.7 * age));
+    if (sexo === 'F') return Math.round(447.6 + (9.25 * p) + (3.1 * t) - (4.33 * age));
+    return null;
+  };
+  const tmb = calcTMB();
+
+  // ── 4. ALERTAS CLÍNICAS ──────────────────────────────────────────────────────
+  const alertas = [];
+  if (bmiVal && parseFloat(bmiVal) >= 30) alertas.push({ icon: '⚠', texto: 'Obesidad (IMC ≥ 30)', sub: 'Mayor riesgo metabólico y cardiovascular', color: '#B02020' });
+  if (valoracion.pct_grasa && parseFloat(valoracion.pct_grasa) > 35) alertas.push({ icon: '⚠', texto: 'Grasa corporal elevada (> 35%)', sub: 'Impacta directamente el metabolismo basal', color: '#B02020' });
+  if (valoracion.vo2max && parseFloat(valoracion.vo2max) < 20) alertas.push({ icon: '⚠', texto: 'VO2max crítico (< 20 ml/kg/min)', sub: 'Capacidad aeróbica muy baja — iniciar con ejercicio supervisado', color: '#B02020' });
+  if (valoracion.fc_reposo && parseInt(valoracion.fc_reposo) > 90) alertas.push({ icon: '⚠', texto: 'FC reposo elevada (> 90 bpm)', sub: 'Evaluación cardiovascular recomendada', color: '#C25A00' });
+  if (valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes)) alertas.push({ icon: '🩸', texto: 'Pre-diabetes / Diabetes', sub: 'Monitorear glucemia antes y después del ejercicio', color: '#C25A00' });
+  if (valoracion.limitantes && /hipert/i.test(valoracion.limitantes)) alertas.push({ icon: '❤️', texto: 'Hipertensión arterial', sub: 'Evitar ejercicio de alta intensidad sin evaluación médica', color: '#C25A00' });
+  if (valoracion.spo2 && parseFloat(valoracion.spo2) < 94) alertas.push({ icon: '🫁', texto: `SpO2 baja (${valoracion.spo2}%)`, sub: 'Saturación de oxígeno por debajo del rango normal', color: '#B02020' });
+
+  // ── 5. OBJETIVOS SMART ───────────────────────────────────────────────────────
+  const objetivos = [];
+  const semanas12 = new Date(); semanas12.setDate(semanas12.getDate() + 84);
+  const fmtMeta = d => d.toLocaleDateString('es-EC', { day: '2-digit', month: 'long' });
+
+  if (valoracion.pct_grasa) {
+    const grasa = parseFloat(valoracion.pct_grasa);
+    const metaGrasa = paciente.sexo === 'F' ? 26 : 18;
+    if (grasa > metaGrasa + 2) {
+      const reduccion = Math.min((grasa - metaGrasa).toFixed(1), 6);
+      objetivos.push({ icono: '🎯', titulo: 'Reducir % grasa corporal', meta: `De ${grasa}% → ${(grasa - reduccion).toFixed(1)}%`, plazo: `Meta a 12 semanas · ${fmtMeta(semanas12)}`, color: '#1A7A4A' });
+    }
+  }
+  if (valoracion.masa_muscular && parseFloat(valoracion.masa_muscular) < 32) {
+    const musculo = parseFloat(valoracion.masa_muscular);
+    objetivos.push({ icono: '💪', titulo: 'Aumentar masa muscular', meta: `De ${musculo} kg → ${(musculo + 1.5).toFixed(1)} kg`, plazo: `Meta a 12 semanas · ${fmtMeta(semanas12)}`, color: '#1E7CB5' });
+  }
+  if (valoracion.vo2max && parseFloat(valoracion.vo2max) < 40) {
+    const vo2 = parseFloat(valoracion.vo2max);
+    objetivos.push({ icono: '❤️', titulo: 'Mejorar capacidad aeróbica', meta: `De ${vo2} → ${(vo2 + 4).toFixed(0)} ml/kg/min`, plazo: `Meta a 12 semanas · ${fmtMeta(semanas12)}`, color: '#7B2D8B' });
+  }
+  if (valoracion.sit_stand && parseInt(valoracion.sit_stand) < 20) {
+    const ss = parseInt(valoracion.sit_stand);
+    objetivos.push({ icono: '🦵', titulo: 'Fuerza funcional (Sit & Stand)', meta: `De ${ss} → ${Math.min(ss + 6, 25)} reps/min`, plazo: `Meta a 8 semanas`, color: '#C25A00' });
+  }
+
+  // ── STATUS HELPERS ─────────────────────────────────────────────────────────
+  const bmiStatus = bmiVal ? (parseFloat(bmiVal) > 35 ? 'alert' : parseFloat(bmiVal) > 25 ? 'warn' : 'good') : 'neutral';
+  const fatStatus = valoracion.pct_grasa ? (parseFloat(valoracion.pct_grasa) > 35 ? 'alert' : parseFloat(valoracion.pct_grasa) > 25 ? 'warn' : 'good') : 'neutral';
+  const muscleStatus = valoracion.masa_muscular ? (parseFloat(valoracion.masa_muscular) > 32 ? 'good' : 'warn') : 'neutral';
+  const vo2Status = valoracion.vo2max ? (parseFloat(valoracion.vo2max) > 35 ? 'good' : parseFloat(valoracion.vo2max) > 25 ? 'warn' : 'alert') : 'neutral';
+  const ssStatus = valoracion.sit_stand ? (parseInt(valoracion.sit_stand) >= 20 ? 'good' : parseInt(valoracion.sit_stand) >= 15 ? 'warn' : 'alert') : 'neutral';
+  const dynaStatus = valoracion.dina_d ? (parseFloat(valoracion.dina_d) > 35 ? 'good' : 'warn') : 'neutral';
+
+  const card = (label, val, unit, ref, desc, status, rangoMin, rangoMax, rangoTotal) => {
     const colors = {
       good: { top: '#E8F5EE', label: B.green, val: B.green, bot: '#D1FAE5', text: '#064E2E' },
       warn: { top: '#FFF3E0', label: B.orange, val: B.orange, bot: '#FDDCB5', text: '#7A3300' },
@@ -61,24 +161,34 @@ export function generarInforme(paciente, valoracion) {
       neutral: { top: B.grayLt, label: B.teal, val: B.navy, bot: '#DDE3EA', text: B.teal },
     };
     const c = colors[status] || colors.neutral;
+    // Barra visual
+    let barraHTML = '';
+    if (val && rangoMin !== undefined && rangoMax !== undefined && rangoTotal !== undefined) {
+      const pct = Math.min(100, Math.max(0, (parseFloat(val) / rangoTotal) * 100));
+      const normalMin = (rangoMin / rangoTotal) * 100;
+      const normalMax = (rangoMax / rangoTotal) * 100;
+      barraHTML = `
+        <div style="margin:6px 0 2px;position:relative;">
+          <div style="height:6px;background:#DDE3EA;border-radius:3px;overflow:hidden;position:relative;">
+            <div style="position:absolute;left:${normalMin}%;width:${normalMax - normalMin}%;height:100%;background:#BBF7D0;border-radius:3px;"></div>
+            <div style="position:absolute;left:${pct}%;transform:translateX(-50%);width:10px;height:10px;top:-2px;background:${c.val};border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:7px;color:#9AA5B1;margin-top:3px;">
+            <span>0</span><span style="color:#1A7A4A;font-weight:600;">Normal</span><span>${rangoTotal}</span>
+          </div>
+        </div>`;
+    }
     return `
       <div style="border-radius:10px;overflow:hidden;border:1.5px solid #DDE3EA;">
         <div style="padding:12px 14px 8px;background:${c.top};">
           <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${c.label};margin-bottom:5px;">${label}</div>
           <div style="font-size:24px;font-weight:700;color:${c.val};line-height:1;">${val || '—'}<span style="font-size:11px;font-weight:400;"> ${val ? unit : ''}</span></div>
           <div style="font-size:9px;color:${c.label};opacity:.7;margin-top:2px;">${ref}</div>
+          ${barraHTML}
         </div>
         <div style="padding:8px 14px;background:${c.bot};font-size:11px;color:${c.text};line-height:1.45;">${desc}</div>
       </div>`;
   };
-
-  const bmiVal = valoracion.bmi || (valoracion.peso && valoracion.talla ? (parseFloat(valoracion.peso) / ((parseFloat(valoracion.talla) / 100) ** 2)).toFixed(1) : null);
-  const bmiStatus = bmiVal ? (parseFloat(bmiVal) > 35 ? 'alert' : parseFloat(bmiVal) > 30 ? 'warn' : parseFloat(bmiVal) > 25 ? 'warn' : 'good') : 'neutral';
-  const fatStatus = valoracion.pct_grasa ? (parseFloat(valoracion.pct_grasa) > 35 ? 'alert' : parseFloat(valoracion.pct_grasa) > 25 ? 'warn' : 'good') : 'neutral';
-  const muscleStatus = valoracion.masa_muscular ? (parseFloat(valoracion.masa_muscular) > 32 ? 'good' : 'warn') : 'neutral';
-  const vo2Status = valoracion.vo2max ? (parseFloat(valoracion.vo2max) > 35 ? 'good' : parseFloat(valoracion.vo2max) > 25 ? 'warn' : 'alert') : 'neutral';
-  const ssStatus = valoracion.sit_stand ? (parseInt(valoracion.sit_stand) >= 20 ? 'good' : parseInt(valoracion.sit_stand) >= 15 ? 'warn' : 'alert') : 'neutral';
-  const dynaStatus = valoracion.dina_d ? (parseFloat(valoracion.dina_d) > 35 ? 'good' : 'warn') : 'neutral';
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -128,35 +238,87 @@ export function generarInforme(paciente, valoracion) {
     <p style="font-size:12px;color:white;line-height:1.5;"><strong>Este documento es tuyo.</strong> Está escrito para que entiendas exactamente cómo está tu cuerpo hoy — sin tecnicismos. Los números son tu punto de partida. Lo que importa es hacia dónde vamos juntos.</p>
   </div>
 
-  <!-- BODY -->
   <div style="padding:28px 36px;">
 
-    <!-- Resultados principales -->
+    <!-- ① EDAD METABÓLICA + RIESGO CV -->
+    ${(edadMetabolica || riesgoCV) ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
+      ${edadMetabolica ? `
+      <div style="border-radius:10px;overflow:hidden;border:1.5px solid #DDE3EA;">
+        <div style="padding:14px 16px;background:${diffEdad > 5 ? '#FEF2F2' : diffEdad > 0 ? '#FFF3E0' : '#E8F5EE'};">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${diffEdad > 5 ? '#B02020' : diffEdad > 0 ? '#C25A00' : '#1A7A4A'};margin-bottom:6px;">🧬 Edad metabólica estimada</div>
+          <div style="display:flex;align-items:flex-end;gap:10px;">
+            <div style="font-size:40px;font-weight:800;color:${diffEdad > 5 ? '#B02020' : diffEdad > 0 ? '#C25A00' : '#1A7A4A'};line-height:1;">${edadMetabolica}<span style="font-size:14px;"> años</span></div>
+            <div style="font-size:11px;color:#6E6E70;padding-bottom:4px;">Edad real: <strong>${age} años</strong><br>${diffEdad > 0 ? `+${diffEdad} años por encima` : diffEdad < 0 ? `${Math.abs(diffEdad)} años por debajo` : 'Igual a edad real'}</div>
+          </div>
+        </div>
+        <div style="padding:8px 16px;background:${diffEdad > 5 ? '#FECACA' : diffEdad > 0 ? '#FDDCB5' : '#D1FAE5'};font-size:11px;color:${diffEdad > 5 ? '#7F1D1D' : diffEdad > 0 ? '#7A3300' : '#064E2E'};line-height:1.45;">
+          ${diffEdad > 5 ? 'Tu cuerpo envejece más rápido de lo esperado. El entrenamiento puede revertirlo.' : diffEdad > 0 ? 'Ligeramente por encima. El programa IMC lo mejorará en semanas.' : '¡Excelente! Tu cuerpo funciona mejor que tu edad cronológica.'}
+        </div>
+      </div>` : '<div></div>'}
+      <div style="border-radius:10px;overflow:hidden;border:1.5px solid #DDE3EA;">
+        <div style="padding:14px 16px;background:${riesgoCV.bg};">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${riesgoCV.color};margin-bottom:6px;">❤️ Riesgo cardiovascular</div>
+          <div style="font-size:32px;font-weight:800;color:${riesgoCV.color};line-height:1;margin-bottom:4px;">${riesgoCV.nivel}</div>
+          <div style="display:flex;gap:4px;margin-top:8px;">
+            ${['Bajo', 'Moderado', 'Alto'].map(n => `<div style="flex:1;height:5px;border-radius:3px;background:${n === riesgoCV.nivel ? riesgoCV.color : '#DDE3EA'};"></div>`).join('')}
+          </div>
+        </div>
+        <div style="padding:8px 16px;background:${riesgoCV.nivel === 'Bajo' ? '#D1FAE5' : riesgoCV.nivel === 'Moderado' ? '#FDDCB5' : '#FECACA'};font-size:11px;color:${riesgoCV.nivel === 'Bajo' ? '#064E2E' : riesgoCV.nivel === 'Moderado' ? '#7A3300' : '#7F1D1D'};line-height:1.45;">${riesgoCV.desc}</div>
+      </div>
+    </div>` : ''}
+
+    <!-- ② RESULTADOS CON BARRA VISUAL -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
       <div style="width:3px;height:20px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
       <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Tus resultados principales</h2>
       <div style="flex:1;height:1px;background:#DDE3EA;"></div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;">
-      ${card('Peso corporal', valoracion.peso, 'kg', `IMC: ${bmiVal || '—'}`, bmiVal && parseFloat(bmiVal) > 30 ? 'Tu peso actual genera carga extra en articulaciones y corazón. Es el principal objetivo del programa.' : 'Peso en seguimiento. El foco será mejorar la composición corporal.', bmiStatus)}
-      ${card('% Grasa corporal', valoracion.pct_grasa, '%', 'H: 10–20% · M: 18–28%', valoracion.pct_grasa ? (parseFloat(valoracion.pct_grasa) > 30 ? 'Alta proporción de grasa. Afecta el metabolismo. Cambiará con el entrenamiento.' : 'Grasa por encima del óptimo. Mejorable con ejercicio y nutrición.') : 'Dato por completar.', fatStatus)}
-      ${card('Masa muscular', valoracion.masa_muscular, 'kg', 'Músculo esquelético', valoracion.masa_muscular ? (parseFloat(valoracion.masa_muscular) > 32 ? 'Buena masa muscular. El entrenamiento la preservará y aumentará.' : 'Músculo por debajo del rango ideal. Construirlo es prioridad del programa.') : 'Dato por completar.', muscleStatus)}
-      ${card('Capacidad cardiorrespiratoria', valoracion.vo2max, 'ml/kg/min', 'Normal: ≥ 35 ml/kg/min', valoracion.vo2max ? (parseFloat(valoracion.vo2max) < 25 ? 'Corazón y pulmones trabajan al límite. Mejorar esto reduce riesgo quirúrgico.' : 'Capacidad aeróbica moderada. El cardio progresivo la elevará.') : 'Dato por completar.', vo2Status)}
-      ${card('Test funcional (Sit & Stand)', valoracion.sit_stand, 'reps/min', 'Normal: ≥ 20 repeticiones', valoracion.sit_stand ? (parseInt(valoracion.sit_stand) >= 20 ? 'Buena fuerza funcional de piernas.' : 'Fuerza funcional por debajo del rango. El entrenamiento lo mejora rápido.') : 'Dato por completar.', ssStatus)}
-      ${card('Fuerza de agarre', valoracion.dina_d, 'kg', 'H: 35–55 · M: 20–35 kg', valoracion.dina_d ? (parseFloat(valoracion.dina_d) > 35 ? 'Fuerza de agarre normal. Indicador positivo de fuerza general.' : 'Por debajo del rango. Mejorable con entrenamiento de fuerza.') : 'Dato por completar.', dynaStatus)}
+      ${card('Peso corporal', valoracion.peso, 'kg', `IMC: ${bmiVal || '—'}`,
+        bmiVal && parseFloat(bmiVal) > 30 ? 'Tu peso genera carga extra en articulaciones y corazón. Es el objetivo principal.' : 'Peso en seguimiento. El foco será mejorar la composición corporal.',
+        bmiStatus, 18.5, 24.9, 40)}
+      ${card('% Grasa corporal', valoracion.pct_grasa, '%', paciente.sexo === 'F' ? 'Normal: 18–28%' : 'Normal: 10–20%',
+        valoracion.pct_grasa ? (parseFloat(valoracion.pct_grasa) > 30 ? 'Alta proporción de grasa. Afecta el metabolismo. Cambiará con el entrenamiento.' : 'Mejorable con ejercicio y nutrición adecuada.') : 'Dato por completar.',
+        fatStatus, paciente.sexo === 'F' ? 18 : 10, paciente.sexo === 'F' ? 28 : 20, 50)}
+      ${card('Masa muscular', valoracion.masa_muscular, 'kg', 'Músculo esquelético',
+        valoracion.masa_muscular ? (parseFloat(valoracion.masa_muscular) > 32 ? 'Buena masa muscular base. El entrenamiento la preservará.' : 'Músculo por debajo del ideal. Construirlo es prioridad del programa.') : 'Dato por completar.',
+        muscleStatus, 28, 40, 60)}
+      ${card('Capacidad aeróbica', valoracion.vo2max, 'ml/kg/min', 'Normal: ≥ 35',
+        valoracion.vo2max ? (parseFloat(valoracion.vo2max) > 35 ? 'Buena capacidad aeróbica.' : parseFloat(valoracion.vo2max) > 25 ? 'Capacidad moderada. El cardio progresivo la elevará.' : 'Capacidad baja. Iniciar con ejercicio supervisado.') : 'Dato por completar.',
+        vo2Status, 28, 45, 60)}
+      ${card('Fuerza funcional', valoracion.sit_stand, 'reps/min', 'Normal: ≥ 20 reps',
+        valoracion.sit_stand ? (parseInt(valoracion.sit_stand) >= 20 ? 'Buena fuerza funcional.' : 'Por debajo del rango. El entrenamiento de tren inferior lo mejora rápido.') : 'Dato por completar.',
+        ssStatus, 20, 35, 45)}
+      ${card('Fuerza de agarre', valoracion.dina_d, 'kg', paciente.sexo === 'F' ? 'Normal: 20–35 kg' : 'Normal: 35–55 kg',
+        valoracion.dina_d ? (parseFloat(valoracion.dina_d) > (paciente.sexo === 'F' ? 20 : 35) ? 'Fuerza de agarre en rango normal.' : 'Por debajo del rango. Indicador de fuerza muscular general.') : 'Dato por completar.',
+        dynaStatus, paciente.sexo === 'F' ? 20 : 35, paciente.sexo === 'F' ? 35 : 55, 70)}
     </div>
 
-    <!-- Zonas cardíacas -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-top:24px;">
+    <!-- ③ METABOLISMO BASAL -->
+    ${tmb ? `
+    <div style="background:#F4F6F8;border-radius:10px;padding:14px 18px;margin-bottom:24px;display:flex;align-items:center;gap:16px;">
+      <div style="flex-shrink:0;text-align:center;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4B647A;margin-bottom:4px;">🔥 Metabolismo basal</div>
+        <div style="font-size:32px;font-weight:800;color:#0B1F3B;">${tmb}<span style="font-size:13px;font-weight:400;color:#6E6E70;"> kcal/día</span></div>
+      </div>
+      <div style="flex:1;border-left:1.5px solid #DDE3EA;padding-left:16px;">
+        <p style="font-size:12px;color:#0B1F3B;margin-bottom:4px;">Tu cuerpo quema <strong>${tmb} calorías al día en reposo absoluto</strong> solo para mantener sus funciones vitales.</p>
+        <p style="font-size:11px;color:#6E6E70;">Con actividad física moderada (3–4 días/semana) tu gasto total estimado es de <strong>${Math.round(tmb * 1.55)} – ${Math.round(tmb * 1.65)} kcal/día</strong>. Tu nutricionista ajustará el plan según este dato.</p>
+      </div>
+    </div>` : ''}
+
+    <!-- ④ ZONAS CARDÍACAS -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="width:3px;height:20px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
       <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Tus zonas cardíacas personales</h2>
       <div style="flex:1;height:1px;background:#DDE3EA;"></div>
     </div>
-    <p style="font-size:12px;color:#6E6E70;margin-bottom:14px;line-height:1.5;">Calculadas específicamente para ti. Son tu guía de intensidad — ni tan suave que no sirva, ni tan fuerte que sea riesgoso.</p>
+    <p style="font-size:12px;color:#6E6E70;margin-bottom:14px;line-height:1.5;">Calculadas específicamente para ti con la fórmula de Karvonen. Son tu guía de intensidad — ni tan suave que no sirva, ni tan fuerte que sea riesgoso.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
       <div style="background:#F4F6F8;border-radius:10px;padding:12px 14px;border:1.5px solid #DDE3EA;">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;margin-bottom:3px;">FC en reposo</div>
-        <div style="font-size:20px;font-weight:600;font-family:'Courier New',monospace;color:#0B1F3B;">${valoracion.fc_reposo || '—'} bpm</div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;margin-bottom:3px;">Referencia cardíaca</div>
+        <div style="font-size:20px;font-weight:600;font-family:'Courier New',monospace;color:#0B1F3B;">${valoracion.fc_reposo || '—'} bpm <span style="font-size:11px;color:#6E6E70;">reposo</span></div>
         <div style="font-size:10px;color:#6E6E70;margin-top:3px;">FC máxima teórica: ${fcmax || '—'} bpm · Reserva: ${reserve || '—'} bpm</div>
       </div>
       <div style="background:#EFF6FF;border-radius:10px;padding:12px 14px;border:1.5px solid #BFDBFE;">
@@ -165,20 +327,54 @@ export function generarInforme(paciente, valoracion) {
         <div style="font-size:10px;color:#1E40AF;margin-top:3px;">35–47% VO2max · Calentamiento y caminatas</div>
       </div>
       <div style="background:#F0FDF4;border-radius:10px;padding:12px 14px;border:1.5px solid #BBF7D0;">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#15803D;margin-bottom:3px;">Zona 2 — Objetivo principal</div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#15803D;margin-bottom:3px;">Zona 2 — Objetivo principal 🎯</div>
         <div style="font-size:20px;font-weight:600;font-family:'Courier New',monospace;color:#15803D;">${z2.lo} – ${z2.hi} bpm</div>
-        <div style="font-size:10px;color:#166534;margin-top:3px;">48–67% VO2max · Bloque principal de cardio</div>
+        <div style="font-size:10px;color:#166534;margin-top:3px;">48–67% VO2max · Resistencia aeróbica · Quema grasa óptima</div>
       </div>
       <div style="background:#FFFBEB;border-radius:10px;padding:12px 14px;border:1.5px solid #FDE68A;">
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#B45309;margin-bottom:3px;">Zona 3 — ${paciente.grupo === 'prequirurgico' ? 'No superar en esta fase' : 'Umbral aeróbico'}</div>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#B45309;margin-bottom:3px;">Zona 3 — ${paciente.grupo === 'prequirurgico' ? 'No recomendada ahora' : 'Umbral aeróbico'}</div>
         <div style="font-size:20px;font-weight:600;font-family:'Courier New',monospace;color:#B45309;">${z3.lo} – ${z3.hi} bpm</div>
-        <div style="font-size:10px;color:#92400E;margin-top:3px;">${paciente.grupo === 'prequirurgico' ? 'Reducir intensidad si alcanza esta zona' : '68–74% VO2max · Intervalos y HIIT'}</div>
+        <div style="font-size:10px;color:#92400E;margin-top:3px;">${paciente.grupo === 'prequirurgico' ? 'Pre-quirúrgico: evitar superar esta zona' : '68–74% VO2max · Intervalos'}</div>
       </div>
     </div>
 
-    <!-- Diagnóstico -->
+    <!-- ⑤ OBJETIVOS SMART -->
+    ${objetivos.length > 0 ? `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="width:3px;height:20px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
+      <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Tus objetivos a 12 semanas</h2>
+      <div style="flex:1;height:1px;background:#DDE3EA;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;">
+      ${objetivos.map(o => `
+      <div style="border-radius:10px;padding:12px 14px;background:${o.color}11;border:1.5px solid ${o.color}33;">
+        <div style="font-size:11px;font-weight:700;color:${o.color};margin-bottom:4px;">${o.icono} ${o.titulo}</div>
+        <div style="font-size:18px;font-weight:800;color:#0B1F3B;margin-bottom:3px;">${o.meta}</div>
+        <div style="font-size:10px;color:#6E6E70;">${o.plazo}</div>
+      </div>`).join('')}
+    </div>` : ''}
+
+    <!-- ⑥ ALERTAS CLÍNICAS -->
+    ${alertas.length > 0 ? `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="width:3px;height:20px;background:#B02020;border-radius:2px;flex-shrink:0;"></div>
+      <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#B02020;font-weight:700;">Alertas clínicas</h2>
+      <div style="flex:1;height:1px;background:#DDE3EA;"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;">
+      ${alertas.map(a => `
+      <div style="background:${a.color}11;border:1.5px solid ${a.color}33;border-radius:8px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start;">
+        <span style="font-size:16px;flex-shrink:0;">${a.icon}</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:${a.color};">${a.texto}</div>
+          <div style="font-size:10px;color:#6E6E70;margin-top:2px;line-height:1.4;">${a.sub}</div>
+        </div>
+      </div>`).join('')}
+    </div>` : ''}
+
+    <!-- DIAGNÓSTICO -->
     ${valoracion.diagnostico ? `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="width:3px;height:20px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
       <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Diagnóstico fisioterapéutico</h2>
       <div style="flex:1;height:1px;background:#DDE3EA;"></div>
@@ -186,16 +382,17 @@ export function generarInforme(paciente, valoracion) {
     <div style="background:#F4F6F8;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
       <p style="font-size:13px;color:#0B1F3B;line-height:1.6;">${valoracion.diagnostico}</p>
       ${valoracion.limitantes ? `<p style="font-size:12px;color:#C25A00;margin-top:8px;"><strong>Limitantes:</strong> ${valoracion.limitantes}</p>` : ''}
+      ${valoracion.fortalezas ? `<p style="font-size:12px;color:#1A7A4A;margin-top:6px;"><strong>Fortalezas:</strong> ${valoracion.fortalezas}</p>` : ''}
     </div>` : ''}
 
-    <!-- Compromiso -->
+    <!-- COMPROMISO -->
     <div style="background:#0B1F3B;border-radius:10px;padding:20px 22px;margin-bottom:24px;position:relative;overflow:hidden;">
       <div style="position:absolute;width:160px;height:160px;border-radius:50%;border:36px solid rgba(30,124,181,0.1);right:-30px;bottom:-50px;"></div>
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#1E7CB5;margin-bottom:8px;">Nuestro compromiso contigo</div>
       <p style="font-family:Georgia,'Times New Roman',serif;font-size:17px;color:white;line-height:1.5;position:relative;z-index:1;">Llegaste aquí habiendo dado <span style="color:#1E7CB5;">el paso más difícil</span>. Nuestro trabajo es acompañarte con ciencia, tecnología y un plan real — para que cada sesión valga.</p>
     </div>
 
-    <!-- Firmas -->
+    <!-- FIRMAS -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;padding-top:20px;border-top:1.5px solid #DDE3EA;">
       <div>
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;font-weight:600;margin-bottom:28px;">Terapeuta Física IMC</div>
@@ -220,7 +417,6 @@ export function generarInforme(paciente, valoracion) {
 </body></html>`;
 }
 
-// ─── GUÍA DE ENTRENAMIENTO ────────────────────────────────────────────────────
 export function generarGuia(paciente, valoracion, plan, planEjercicios, ejercicios) {
   const age = calcAge(paciente.fecha_nacimiento);
   const fcmax = age > 0 ? 220 - age : null;
