@@ -38,6 +38,8 @@ const BASE_STYLES = `
 // ─── INFORME DE CONDICIÓN ─────────────────────────────────────────────────────
 export function generarInforme(paciente, valoracion) {
   const age = calcAge(paciente.fecha_nacimiento);
+  const nombre1 = paciente.nombre.split(' ')[0];
+  const esMujer = paciente.sexo === 'F';
   const fcmax = age > 0 ? 220 - age : null;
   const reserve = fcmax && valoracion.fc_reposo ? fcmax - parseInt(valoracion.fc_reposo) : null;
 
@@ -52,12 +54,28 @@ export function generarInforme(paciente, valoracion) {
   const z2 = valoracion.zona2_lo ? { lo: valoracion.zona2_lo, hi: valoracion.zona2_hi } : getZona(48, 67);
   const z3 = valoracion.zona3_lo ? { lo: valoracion.zona3_lo, hi: valoracion.zona3_hi } : getZona(68, 74);
 
-  const bmiVal = valoracion.bmi || (valoracion.peso && valoracion.talla
-    ? (parseFloat(valoracion.peso) / ((parseFloat(valoracion.talla) / 100) ** 2)).toFixed(1) : null);
-  const nombre1 = paciente.nombre.split(' ')[0];
-  const esMujer = paciente.sexo === 'F';
+  const bmiVal = valoracion.bmi
+    || (valoracion.peso && valoracion.talla
+      ? (parseFloat(valoracion.peso) / ((parseFloat(valoracion.talla) / 100) ** 2)).toFixed(1)
+      : null);
 
-  // ── CÁLCULOS CLÍNICOS ────────────────────────────────────────────────────────
+  // ── ÍNDICES AVANZADOS ────────────────────────────────────────────────────────
+  const talla_m = valoracion.talla ? parseFloat(valoracion.talla) / 100 : null;
+  const fmi = (valoracion.masa_grasa && talla_m)
+    ? (parseFloat(valoracion.masa_grasa) / (talla_m * talla_m)).toFixed(1) : null;
+  const smi = (valoracion.masa_muscular && talla_m)
+    ? (parseFloat(valoracion.masa_muscular) / (talla_m * talla_m)).toFixed(1) : null;
+  const ratioMusGrasa = (valoracion.masa_muscular && valoracion.masa_grasa && parseFloat(valoracion.masa_grasa) > 0)
+    ? (parseFloat(valoracion.masa_muscular) / parseFloat(valoracion.masa_grasa)).toFixed(2) : null;
+  const indCinturaTalla = (valoracion.cintura && valoracion.talla)
+    ? (parseFloat(valoracion.cintura) / parseFloat(valoracion.talla)).toFixed(2) : null;
+  const indCintCadera = (valoracion.cintura && valoracion.cadera)
+    ? (parseFloat(valoracion.cintura) / parseFloat(valoracion.cadera)).toFixed(2) : null;
+  const fuerzaRelativa = (valoracion.dina_d && valoracion.peso)
+    ? (parseFloat(valoracion.dina_d) / parseFloat(valoracion.peso)).toFixed(2) : null;
+  const grasaVisceral = valoracion.grasa_visceral ? parseInt(valoracion.grasa_visceral) : null;
+
+  // ── METABOLISMO BASAL ────────────────────────────────────────────────────────
   const tmb = (() => {
     if (!valoracion.peso || !valoracion.talla || !age) return null;
     const p = parseFloat(valoracion.peso), t = parseFloat(valoracion.talla);
@@ -66,326 +84,494 @@ export function generarInforme(paciente, valoracion) {
       : Math.round(88.36 + 13.4 * p + 4.8 * t - 5.7 * age);
   })();
 
+  // ── VO2MAX CLASIFICACIÓN ACSM POR EDAD Y SEXO ────────────────────────────────
+  const vo2Clasificacion = (() => {
+    if (!valoracion.vo2max || !age) return null;
+    const v = parseFloat(valoracion.vo2max);
+    // Tablas ACSM simplificadas por grupo etario y sexo
+    const tablas = esMujer
+      ? { '20-29': [35,36,41,46,52], '30-39': [33,34,39,44,50], '40-49': [31,32,36,41,46], '50-59': [28,29,34,38,43], '60+': [25,26,30,34,39] }
+      : { '20-29': [37,44,51,57,62], '30-39': [35,41,47,53,59], '40-49': [33,38,44,50,55], '50-59': [30,35,40,45,51], '60+': [26,31,37,41,46] };
+    const grupo = age < 30 ? '20-29' : age < 40 ? '30-39' : age < 50 ? '40-49' : age < 60 ? '50-59' : '60+';
+    const [muypobre, pobre, regular, bueno] = tablas[grupo] || tablas['40-49'];
+    const percentil = v < muypobre ? 10 : v < pobre ? 25 : v < regular ? 50 : v < bueno ? 75 : 90;
+    const nivel = v < muypobre ? 'Muy pobre' : v < pobre ? 'Pobre' : v < regular ? 'Regular' : v < bueno ? 'Buena' : 'Excelente';
+    const color = v < pobre ? '#B02020' : v < regular ? '#C25A00' : '#1A7A4A';
+    return { nivel, percentil, color, valor: v };
+  })();
+
+  // ── EDAD METABÓLICA ──────────────────────────────────────────────────────────
   const edadMetab = (() => {
     if (!valoracion.vo2max || !age) return null;
     return Math.max(18, Math.min(80, Math.round((65 - parseFloat(valoracion.vo2max)) / 0.55)));
   })();
 
-  const riesgoCV = (() => {
-    let p = 0;
-    if (bmiVal) p += parseFloat(bmiVal) > 35 ? 3 : parseFloat(bmiVal) > 30 ? 2 : parseFloat(bmiVal) > 25 ? 1 : 0;
-    if (valoracion.vo2max) p += parseFloat(valoracion.vo2max) < 20 ? 3 : parseFloat(valoracion.vo2max) < 28 ? 2 : parseFloat(valoracion.vo2max) < 35 ? 1 : 0;
-    if (valoracion.fc_reposo) p += parseInt(valoracion.fc_reposo) > 90 ? 2 : parseInt(valoracion.fc_reposo) > 80 ? 1 : 0;
-    if (age > 55) p += 2; else if (age > 45) p += 1;
-    if (valoracion.limitantes && /diab|hipert/i.test(valoracion.limitantes)) p += 2;
-    if (p <= 2) return { nivel: 'Bajo', color: '#1A7A4A', bg: '#E8F5EE' };
-    if (p <= 5) return { nivel: 'Moderado', color: '#C25A00', bg: '#FFF3E0' };
-    return { nivel: 'Alto', color: '#B02020', bg: '#FEF2F2' };
+  // ── PERFIL METABÓLICO — detecta el patrón del paciente ──────────────────────
+  const perfilMetabolico = (() => {
+    const flags = [];
+    if (bmiVal && parseFloat(bmiVal) > 25) flags.push('sobrepeso');
+    if (valoracion.pct_grasa && parseFloat(valoracion.pct_grasa) > (esMujer ? 28 : 20)) flags.push('grasa_alta');
+    if (grasaVisceral && grasaVisceral >= 10) flags.push('visceral_alta');
+    if (valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes)) flags.push('prediabetes');
+    if (valoracion.vo2max && parseFloat(valoracion.vo2max) < 35) flags.push('aerobica_baja');
+    if (ratioMusGrasa && parseFloat(ratioMusGrasa) < 1) flags.push('mas_grasa_que_musculo');
+    if (indCinturaTalla && parseFloat(indCinturaTalla) > 0.5) flags.push('riesgo_central');
+
+    // Síndrome metabólico incipiente
+    if (flags.includes('grasa_alta') && flags.includes('prediabetes') && flags.includes('aerobica_baja'))
+      return {
+        titulo: 'Patrón metabólico de resistencia a la insulina',
+        color: '#C25A00', bg: '#FFF3E0',
+        explicacion: `Tu evaluación revela un patrón muy específico: grasa corporal elevada + pre-diabetes + capacidad aeróbica ${vo2Clasificacion ? vo2Clasificacion.nivel.toLowerCase() : 'limítrofe'}. Este conjunto no es coincidencia — están directamente relacionados entre sí. Cuando el cuerpo desarrolla resistencia a la insulina, deja de procesar eficientemente la glucosa como energía y la redirige hacia el tejido graso. Eso explica algo que probablemente ya sentiste: subir de peso aunque comas bien y hagas ejercicio. El programa IMC está diseñado específicamente para romper este ciclo.`,
+        intervencion: 'El entrenamiento en Zona 2 es la intervención más respaldada científicamente para mejorar la sensibilidad a la insulina. En 8 semanas de constancia, el cuerpo comienza a procesar la glucosa de forma más eficiente.',
+      };
+    if (flags.includes('mas_grasa_que_musculo') && flags.includes('grasa_alta'))
+      return {
+        titulo: 'Composición corporal desequilibrada',
+        color: '#C25A00', bg: '#FFF3E0',
+        explicacion: `Tu cuerpo tiene actualmente más tejido graso que muscular. Este desequilibrio afecta directamente tu metabolismo basal — con menos músculo, quemas menos calorías en reposo, lo que hace más difícil mantener o bajar de peso. No es falta de voluntad; es fisiología. El músculo es metabólicamente activo: cada kilogramo quema entre 13 y 20 calorías al día en reposo.`,
+        intervencion: 'El entrenamiento de fuerza que harás en IMC construirá músculo progresivamente, acelerando tu metabolismo basal desde las primeras semanas.',
+      };
+    if (flags.includes('aerobica_baja'))
+      return {
+        titulo: 'Capacidad cardiorrespiratoria por desarrollar',
+        color: '#1E7CB5', bg: '#EFF6FF',
+        explicacion: `Tu capacidad aeróbica está por debajo del rango óptimo para tu edad. Esto significa que tu corazón y pulmones trabajan con mayor esfuerzo del necesario para actividades cotidianas. La buena noticia: esta es una de las métricas que más rápido mejora con entrenamiento específico.`,
+        intervencion: 'Con 3 sesiones de cardio en Zona 2 por semana, el VO2max puede mejorar 3–5 puntos en 12 semanas. Eso se traduce en más energía diaria y menor fatiga.',
+      };
+    return {
+      titulo: 'Condición física en desarrollo',
+      color: '#1A7A4A', bg: '#E8F5EE',
+      explicacion: `Tu evaluación muestra una condición física activa con áreas específicas a fortalecer. Tu actitud ante el ejercicio es una fortaleza real — el programa IMC trabajará sobre esa base para optimizar tu composición corporal y capacidad funcional.`,
+      intervencion: 'El programa combinará entrenamiento aeróbico y de fuerza para obtener resultados equilibrados en composición corporal y capacidad cardiorrespiratoria.',
+    };
   })();
 
-  // ── NARRATIVA PERSONALIZADA POR DATO ────────────────────────────────────────
-  const seccionGrasa = () => {
-    if (!valoracion.pct_grasa) return '';
-    const g = parseFloat(valoracion.pct_grasa);
-    const normal = esMujer ? 28 : 20;
-    const exceso = g > normal ? (g - normal).toFixed(1) : 0;
-    const kgGrasa = valoracion.peso && g ? ((g / 100) * parseFloat(valoracion.peso)).toFixed(1) : null;
-    const kgExceso = kgGrasa && exceso ? ((exceso / 100) * parseFloat(valoracion.peso)).toFixed(1) : null;
-    return `
-    <div style="background:#FFF3E0;border-radius:12px;padding:18px 20px;margin-bottom:14px;border-left:4px solid #C25A00;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div>
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#C25A00;margin-bottom:4px;">% Grasa corporal</div>
-          <div style="font-size:32px;font-weight:800;color:#C25A00;line-height:1;">${g}%</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:9px;color:#7A3300;margin-bottom:2px;">Rango normal (mujeres): 18–28%</div>
-          <div style="font-size:11px;color:#7A3300;">Tu meta: 28% · Diferencia: <strong>+${exceso}%</strong></div>
-          ${kgExceso ? `<div style="font-size:10px;color:#C25A00;margin-top:2px;">≈ ${kgExceso} kg de grasa a transformar</div>` : ''}
-        </div>
-      </div>
-      <p style="font-size:13px;color:#7A3300;line-height:1.7;margin-bottom:8px;">
-        <strong>¿Qué significa esto para ti?</strong> Tu cuerpo tiene más grasa de la que necesita para funcionar bien. Esto no es estético — la grasa en exceso, especialmente en la zona abdominal, afecta directamente tu metabolismo, tus niveles de azúcar en sangre y tu energía diaria. Con tu condición de pre-diabetes, esto es el punto más importante a trabajar.
-      </p>
-      <p style="font-size:12px;color:#92400E;line-height:1.6;">
-        <strong>Lo que va a pasar:</strong> Con el entrenamiento en Zona 2 (tu zona cardíaca principal) y la alimentación adecuada, tu cuerpo comenzará a usar esa grasa como combustible. En 4 semanas ya verás una diferencia en cómo te sientes. En 12 semanas, en los números.
-      </p>
-    </div>`;
-  };
-
-  const seccionMusculo = () => {
-    if (!valoracion.masa_muscular) return '';
-    const m = parseFloat(valoracion.masa_muscular);
-    const deficit = m < 30 ? (30 - m).toFixed(1) : 0;
-    return `
-    <div style="background:#EFF6FF;border-radius:12px;padding:18px 20px;margin-bottom:14px;border-left:4px solid #1E7CB5;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div>
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#1E7CB5;margin-bottom:4px;">Masa muscular</div>
-          <div style="font-size:32px;font-weight:800;color:#1E7CB5;line-height:1;">${m} kg</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:9px;color:#1E40AF;margin-bottom:2px;">Rango ideal: 30–40 kg</div>
-          ${deficit > 0 ? `<div style="font-size:11px;color:#1565C0;">Necesitas ganar: <strong>+${deficit} kg</strong></div>` : '<div style="font-size:11px;color:#15803D;">En rango óptimo ✓</div>'}
-        </div>
-      </div>
-      <p style="font-size:13px;color:#1E40AF;line-height:1.7;margin-bottom:8px;">
-        <strong>¿Qué significa esto para ti?</strong> El músculo es tu aliado más poderoso. No solo te da fuerza — cada kilogramo de músculo quema entre 13 y 20 calorías al día en reposo. Más músculo significa que tu cuerpo trabaja más incluso cuando estás sentada. Para ti, que tienes pre-diabetes, el músculo también mejora la sensibilidad a la insulina.
-      </p>
-      <p style="font-size:12px;color:#1E40AF;line-height:1.6;">
-        <strong>Lo que va a pasar:</strong> El entrenamiento de fuerza que harás en IMC construirá músculo de forma progresiva. No te preocupes — no vas a voluminizarte. Vas a tonificar, mejorar tu postura y acelerar tu metabolismo.
-      </p>
-    </div>`;
-  };
-
-  const seccionVo2 = () => {
-    if (!valoracion.vo2max) return '';
-    const v = parseFloat(valoracion.vo2max);
-    const clasificacion = v >= 42 ? 'Excelente' : v >= 35 ? 'Buena' : v >= 28 ? 'Moderada' : v >= 20 ? 'Baja' : 'Muy baja';
-    const color = v >= 35 ? '#1A7A4A' : v >= 25 ? '#C25A00' : '#B02020';
-    const bg = v >= 35 ? '#E8F5EE' : v >= 25 ? '#FFF3E0' : '#FEF2F2';
-    return `
-    <div style="background:${bg};border-radius:12px;padding:18px 20px;margin-bottom:14px;border-left:4px solid ${color};">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div>
-          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${color};margin-bottom:4px;">Capacidad cardiorrespiratoria (VO2max)</div>
-          <div style="font-size:32px;font-weight:800;color:${color};line-height:1;">${v} <span style="font-size:14px;">ml/kg/min</span></div>
-        </div>
-        <div style="text-align:right;">
-          <div style="background:${color};color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">${clasificacion}</div>
-          <div style="font-size:9px;color:#6E6E70;margin-top:4px;">Normal: ≥ 35 ml/kg/min</div>
-          ${edadMetab ? `<div style="font-size:10px;color:${color};margin-top:2px;">Edad metabólica: ~${edadMetab} años</div>` : ''}
-        </div>
-      </div>
-      <p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:8px;">
-        <strong>¿Qué significa esto para ti?</strong> El VO2max mide qué tan bien tu corazón y pulmones llevan oxígeno a tus músculos. Una capacidad ${clasificacion.toLowerCase()} significa que tu cuerpo trabaja con mayor esfuerzo para hacer actividades cotidianas — subir escaleras, caminar rápido, cargar cosas. Esto también se relaciona con tu metabolismo y cómo procesas el azúcar en sangre.
-      </p>
-      <p style="font-size:12px;color:#374151;line-height:1.6;">
-        <strong>Lo que va a pasar:</strong> El entrenamiento aeróbico en Zona 2 es la herramienta más poderosa para mejorar esto. Con 3 sesiones por semana, en 8–12 semanas tu VO2max puede subir 3–5 puntos. Eso se traduce en más energía, menos fatiga y mejor control del azúcar en sangre.
-      </p>
-    </div>`;
-  };
-
-  const seccionZonas = () => `
-    <div style="background:#F4F6F8;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4B647A;margin-bottom:12px;">❤️ Tus zonas cardíacas personales · FC reposo: ${valoracion.fc_reposo || '—'} bpm${fcmax ? ' · FC máx teórica: ' + fcmax + ' bpm' : ''}</div>
-      <p style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:14px;">Tu banda cardíaca es tu herramienta de trabajo. Estas zonas están calculadas específicamente para ti — entrenar en la zona correcta es lo que hace que cada sesión valga.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-        <div style="background:#EFF6FF;border-radius:8px;padding:12px 14px;border:1.5px solid #BFDBFE;">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#1D4ED8;margin-bottom:3px;">Zona 1 · Calentamiento</div>
-          <div style="font-size:18px;font-weight:800;color:#1D4ED8;font-family:'Courier New',monospace;">${z1.lo}–${z1.hi}</div>
-          <div style="font-size:9px;color:#1E40AF;">bpm</div>
-          <div style="font-size:10px;color:#1E40AF;margin-top:6px;line-height:1.4;">Conversación fluida. Para entrar en calor y los últimos minutos.</div>
-        </div>
-        <div style="background:#F0FDF4;border-radius:8px;padding:12px 14px;border:2px solid #15803D;">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#15803D;margin-bottom:3px;">Zona 2 · Tu zona 🎯</div>
-          <div style="font-size:18px;font-weight:800;color:#15803D;font-family:'Courier New',monospace;">${z2.lo}–${z2.hi}</div>
-          <div style="font-size:9px;color:#166534;">bpm</div>
-          <div style="font-size:10px;color:#166534;margin-top:6px;line-height:1.4;">Aquí pasan las cosas. Quema grasa + mejora aeróbica + controla el azúcar.</div>
-        </div>
-        <div style="background:#FFFBEB;border-radius:8px;padding:12px 14px;border:1.5px solid #FDE68A;">
-          <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#B45309;margin-bottom:3px;">Zona 3 · Alta intensidad</div>
-          <div style="font-size:18px;font-weight:800;color:#B45309;font-family:'Courier New',monospace;">${z3.lo}–${z3.hi}</div>
-          <div style="font-size:9px;color:#92400E;">bpm</div>
-          <div style="font-size:10px;color:#92400E;margin-top:6px;line-height:1.4;">Por ahora, mantente en Zona 2. Zona 3 llegará cuando tu base esté lista.</div>
-        </div>
-      </div>
-    </div>`;
-
-  const seccionObjetivos = () => {
-    const semanas12 = new Date(); semanas12.setDate(semanas12.getDate() + 84);
-    const fmtMeta = d => d.toLocaleDateString('es-EC', { day: '2-digit', month: 'long' });
-    const items = [];
-    if (valoracion.pct_grasa && parseFloat(valoracion.pct_grasa) > 28) {
+  // ── RESUMEN CLÍNICO NARRATIVO ────────────────────────────────────────────────
+  const resumenClinico = (() => {
+    const partes = [];
+    if (age) partes.push(`Paciente ${esMujer ? 'femenina' : 'masculino'} de ${age} años`);
+    if (paciente.cirugia) partes.push(`${paciente.cirugia}${paciente.fecha_cirugia ? ' (' + fmtDate(paciente.fecha_cirugia) + ')' : ''}`);
+    if (bmiVal) {
+      const bmi = parseFloat(bmiVal);
+      partes.push(bmi > 35 ? `obesidad grado II (IMC ${bmiVal})` : bmi > 30 ? `obesidad grado I (IMC ${bmiVal})` : bmi > 25 ? `sobrepeso (IMC ${bmiVal})` : `IMC normal (${bmiVal})`);
+    }
+    if (valoracion.pct_grasa) {
       const g = parseFloat(valoracion.pct_grasa);
-      const meta = (g - Math.min(6, g - 26)).toFixed(1);
-      items.push({ icono: '🎯', titulo: 'Grasa corporal', actual: `${g}%`, meta: `${meta}%`, nota: '0.8–1 kg de grasa/mes con entrenamiento constante', color: '#C25A00' });
+      const normal = esMujer ? 28 : 20;
+      partes.push(g > normal + 10 ? `grasa corporal muy elevada (${g}%)` : g > normal ? `grasa corporal elevada (${g}%)` : `grasa corporal en rango (${g}%)`);
     }
-    if (valoracion.masa_muscular && parseFloat(valoracion.masa_muscular) < 32) {
-      const m = parseFloat(valoracion.masa_muscular);
-      items.push({ icono: '💪', titulo: 'Masa muscular', actual: `${m} kg`, meta: `${(m + 1.5).toFixed(1)} kg`, nota: 'Con fuerza 2–3 veces por semana', color: '#1E7CB5' });
-    }
-    if (valoracion.vo2max && parseFloat(valoracion.vo2max) < 40) {
-      const v = parseFloat(valoracion.vo2max);
-      items.push({ icono: '❤️', titulo: 'Capacidad aeróbica', actual: `${v} ml/kg/min`, meta: `${(v + 4)} ml/kg/min`, nota: '+3–5 puntos en 12 semanas de cardio Z2', color: '#7B2D8B' });
-    }
-    if (items.length === 0) return '';
-    return `
-    <div style="background:#0B1F3B;border-radius:12px;padding:20px;margin-bottom:14px;">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#1E7CB5;margin-bottom:14px;">🎯 Tus metas concretas para el ${fmtMeta(semanas12)}</div>
-      <div style="display:grid;grid-template-columns:${items.length === 1 ? '1fr' : 'repeat(' + Math.min(items.length, 3) + ',1fr)'};gap:10px;">
-        ${items.map(o => `
-        <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:12px 14px;border:1px solid rgba(255,255,255,0.1);">
-          <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:6px;">${o.icono} ${o.titulo}</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-size:14px;color:rgba(255,255,255,0.4);font-family:'Courier New',monospace;">${o.actual}</span>
-            <span style="color:#1E7CB5;">→</span>
-            <span style="font-size:18px;font-weight:800;color:white;font-family:'Courier New',monospace;">${o.meta}</span>
-          </div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.35);line-height:1.4;">${o.nota}</div>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  };
+    if (vo2Clasificacion) partes.push(`capacidad aeróbica ${vo2Clasificacion.nivel.toLowerCase()} para su grupo etario (VO2max ${vo2Clasificacion.valor} ml/kg/min, percentil ${vo2Clasificacion.percentil})`);
+    if (valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes)) partes.push('pre-diabetes diagnosticada');
+    if (grasaVisceral) partes.push(`grasa visceral ${grasaVisceral >= 13 ? 'alta' : grasaVisceral >= 10 ? 'en límite de riesgo' : 'en rango normal'} (${grasaVisceral}/20)`);
+    return partes.join(', ') + '.';
+  })();
 
-  const seccionAlertas = () => {
-    const alertas = [];
-    if (valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes))
-      alertas.push({ icono: '🩸', titulo: 'Pre-diabetes detectada', desc: 'Tu entrenamiento en Zona 2 es especialmente importante — el ejercicio aeróbico mejora directamente la sensibilidad a la insulina. Monitorea tu glucemia antes y después del ejercicio. Evita entrenar con glucemia < 80 o > 250 mg/dL.', color: '#C25A00', bg: '#FFF3E0' });
-    if (valoracion.spo2 && parseFloat(valoracion.spo2) < 94)
-      alertas.push({ icono: '🫁', titulo: `SpO2 baja: ${valoracion.spo2}%`, desc: 'Tu saturación de oxígeno está por debajo del rango normal. Comunica esto a tu médico tratante antes de iniciar el programa de ejercicios.', color: '#B02020', bg: '#FEF2F2' });
-    if (valoracion.fc_reposo && parseInt(valoracion.fc_reposo) > 90)
-      alertas.push({ icono: '❤️', titulo: `FC en reposo elevada: ${valoracion.fc_reposo} bpm`, desc: 'Una frecuencia cardíaca en reposo alta puede indicar estrés, deshidratación o condición cardiovascular a evaluar. A medida que mejore tu condición aeróbica, este número bajará.', color: '#B02020', bg: '#FEF2F2' });
-    if (alertas.length === 0) return '';
-    return `
-    <div style="margin-bottom:14px;">
-      ${alertas.map(a => `
-      <div style="background:${a.bg};border-radius:10px;padding:14px 16px;margin-bottom:8px;border-left:4px solid ${a.color};">
-        <div style="font-size:12px;font-weight:700;color:${a.color};margin-bottom:6px;">${a.icono} ${a.titulo}</div>
-        <p style="font-size:12px;color:#374151;line-height:1.6;">${a.desc}</p>
-      </div>`).join('')}
-    </div>`;
-  };
+  // ── SEGUIMIENTO ──────────────────────────────────────────────────────────────
+  const semanas4 = new Date(); semanas4.setDate(semanas4.getDate() + 28);
+  const semanas12 = new Date(); semanas12.setDate(semanas12.getDate() + 84);
+  const fmtMeta = d => d.toLocaleDateString('es-EC', { day: '2-digit', month: 'long' });
 
-  const seccionMetabolismo = () => {
-    if (!tmb) return '';
-    return `
-    <div style="background:#F4F6F8;border-radius:12px;padding:16px 20px;margin-bottom:14px;display:flex;gap:16px;align-items:flex-start;">
-      <div style="flex-shrink:0;text-align:center;min-width:100px;">
-        <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:#4B647A;letter-spacing:1px;margin-bottom:4px;">🔥 Metabolismo basal</div>
-        <div style="font-size:28px;font-weight:800;color:#0B1F3B;">${tmb}</div>
-        <div style="font-size:10px;color:#6E6E70;">kcal/día</div>
-      </div>
-      <div style="flex:1;border-left:1.5px solid #DDE3EA;padding-left:16px;">
-        <p style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px;">Tu cuerpo quema <strong>${tmb} calorías al día solo para vivir</strong> — respirar, bombear sangre, mantener la temperatura. Este es tu piso energético.</p>
-        <p style="font-size:12px;color:#374151;line-height:1.6;">Con tu nivel de actividad actual (3–4 días de ejercicio), tu gasto total es de <strong>${Math.round(tmb * 1.55)}–${Math.round(tmb * 1.65)} kcal/día</strong>. Tu nutricionista usará este dato para diseñar tu plan alimentario.</p>
-      </div>
-    </div>`;
-  };
+  const seguimiento4 = [];
+  const seguimiento12 = [];
+  if (valoracion.pct_grasa) {
+    const g = parseFloat(valoracion.pct_grasa);
+    seguimiento4.push({ label: '% Grasa', actual: `${g}%`, esperado: `${(g - 1.5).toFixed(1)}%`, desc: '−1 a 2% en 4 semanas con entrenamiento constante' });
+    seguimiento12.push({ label: '% Grasa', actual: `${g}%`, esperado: `${(g - Math.min(6, g - (esMujer ? 26 : 16))).toFixed(1)}%`, desc: 'Meta clínica a 12 semanas' });
+  }
+  if (valoracion.vo2max) {
+    const v = parseFloat(valoracion.vo2max);
+    seguimiento4.push({ label: 'VO2max', actual: `${v}`, esperado: `${(v + 1.5).toFixed(1)}`, desc: '+1–2 ml/kg/min en primer mes' });
+    seguimiento12.push({ label: 'VO2max', actual: `${v}`, esperado: `${(v + 4).toFixed(0)}`, desc: '+3–5 ml/kg/min en 12 semanas' });
+  }
+  if (valoracion.masa_muscular) {
+    const m = parseFloat(valoracion.masa_muscular);
+    seguimiento12.push({ label: 'Masa muscular', actual: `${m} kg`, esperado: `${(m + 1.5).toFixed(1)} kg`, desc: '+1–2 kg con entrenamiento de fuerza' });
+  }
+
+  // ── ALERTAS CLÍNICAS ─────────────────────────────────────────────────────────
+  const alertas = [];
+  if (valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes))
+    alertas.push({ icono: '🩸', titulo: 'Pre-diabetes', color: '#C25A00', bg: '#FFF3E0',
+      desc: 'El ejercicio aeróbico en Zona 2 es la intervención más efectiva para mejorar la sensibilidad a la insulina. Monitorea tu glucemia antes del ejercicio. Si está por debajo de 80 mg/dL o encima de 250 mg/dL, informa a tu terapeuta antes de la sesión.' });
+  if (grasaVisceral && grasaVisceral >= 10)
+    alertas.push({ icono: '⚠️', titulo: `Grasa visceral elevada (${grasaVisceral}/20)`, color: '#B02020', bg: '#FEF2F2',
+      desc: 'La grasa visceral es la grasa que rodea los órganos internos y es metabólicamente activa. Un nivel ≥10 aumenta el riesgo cardiometabólico independientemente del peso. El entrenamiento aeróbico y la reducción de carbohidratos refinados son las intervenciones más efectivas.' });
+  if (indCinturaTalla && parseFloat(indCinturaTalla) > 0.5)
+    alertas.push({ icono: '📏', titulo: `Índice cintura/talla elevado (${indCinturaTalla})`, color: '#C25A00', bg: '#FFF3E0',
+      desc: `Un índice cintura/talla mayor a 0.50 es un indicador independiente de riesgo cardiometabólico, más preciso que el IMC. Tu cintura (${valoracion.cintura} cm) supera el 50% de tu talla. Reducir la grasa central es una prioridad clínica.` });
+  if (valoracion.fc_reposo && parseInt(valoracion.fc_reposo) > 90)
+    alertas.push({ icono: '❤️', titulo: `FC en reposo elevada: ${valoracion.fc_reposo} bpm`, color: '#B02020', bg: '#FEF2F2',
+      desc: 'Una FC en reposo >90 bpm sugiere menor eficiencia cardíaca. A medida que tu condición aeróbica mejore, este número bajará. Es uno de los indicadores de seguimiento más claros de progreso.' });
 
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <title>Informe de Condición — ${paciente.nombre} ${paciente.apellido}</title>
-<style>${BASE_STYLES}</style>
+<style>${BASE_STYLES}
+  .seccion { margin-bottom: 22px; }
+  .sec-title { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .sec-bar { width:3px; border-radius:2px; flex-shrink:0; }
+  .sec-h { font-size:10px; text-transform:uppercase; letter-spacing:2px; font-weight:700; }
+  .sec-line { flex:1; height:1px; background:#DDE3EA; }
+  .dato { border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+  .dato-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .dato-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px; }
+  .dato-valor { font-size:28px; font-weight:800; line-height:1; }
+  .dato-ref { font-size:10px; opacity:.7; margin-top:2px; }
+  .dato-p { font-size:12px; line-height:1.7; margin-bottom:6px; }
+  .dato-interv { font-size:11px; line-height:1.6; font-style:italic; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .mini { border-radius:8px; padding:10px 12px; }
+  .mini-l { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:3px; }
+  .mini-v { font-size:20px; font-weight:800; font-family:'Courier New',monospace; line-height:1; }
+  .mini-u { font-size:9px; font-weight:400; }
+  .mini-d { font-size:10px; margin-top:5px; line-height:1.4; }
+  .tag { display:inline-block; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; }
+</style>
 </head>
 <body>
 <div class="page">
 
-  <!-- HEADER -->
-  <div style="background:#0B1F3B;padding:28px 36px 24px;position:relative;overflow:hidden;">
-    <div style="position:absolute;width:280px;height:280px;border-radius:50%;border:55px solid rgba(30,124,181,0.09);right:-70px;top:-90px;"></div>
-    <div style="background:white;border-radius:8px;padding:6px 14px;display:inline-flex;align-items:center;margin-bottom:20px;position:relative;z-index:1;">
-      ${LOGO_HTML}
+<!-- ═══ HEADER ═══════════════════════════════════════════════════════════════ -->
+<div style="background:#0B1F3B;padding:28px 36px 24px;position:relative;overflow:hidden;">
+  <div style="position:absolute;width:300px;height:300px;border-radius:50%;border:60px solid rgba(30,124,181,0.08);right:-80px;top:-100px;"></div>
+  <div style="background:white;border-radius:8px;padding:6px 14px;display:inline-flex;align-items:center;margin-bottom:20px;position:relative;z-index:1;">
+    ${LOGO_HTML}
+  </div>
+  <div style="position:relative;z-index:1;">
+    <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:26px;color:white;line-height:1.3;margin-bottom:6px;">Informe de Condición Física,<br><span style="color:#1E7CB5;">${nombre1}.</span></h1>
+    <p style="color:rgba(255,255,255,0.5);font-size:11px;margin-bottom:20px;">Valoración del ${fmtDate(valoracion.fecha)} · ${grupoLabels[paciente.grupo] || ''} · ${paciente.historia_clinica || ''}</p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+      ${[
+        ['Paciente', `${paciente.nombre} ${paciente.apellido}`, `${age} años · ${esMujer ? 'Femenino' : 'Masculino'}`],
+        ['Procedimiento / Plan', paciente.cirugia || planLabels[paciente.plan] || '—', paciente.fecha_cirugia ? 'Fecha: ' + fmtDate(paciente.fecha_cirugia) : ''],
+        ['Terapeuta', valoracion.terapeuta_nombre || '—', 'Fisioterapia IMC'],
+        edadMetab ? ['Edad metabólica', edadMetab + ' años', `Edad real: ${age} años`] : ['Historia Clínica', paciente.historia_clinica || '—', ''],
+      ].map(([l, v, s]) => `
+      <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.11);border-radius:8px;padding:9px 12px;">
+        <div style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.35);margin-bottom:3px;">${l}</div>
+        <div style="font-size:12px;font-weight:600;color:white;line-height:1.3;">${v}</div>
+        ${s ? `<div style="font-size:9px;color:rgba(255,255,255,0.35);margin-top:1px;">${s}</div>` : ''}
+      </div>`).join('')}
     </div>
-    <div style="position:relative;z-index:1;">
-      <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:26px;color:white;line-height:1.3;margin-bottom:8px;">Tu punto de <span style="color:#1E7CB5;">partida</span>,<br>${nombre1}.</h1>
-      <p style="color:rgba(255,255,255,0.55);font-size:12px;margin-bottom:20px;">Valoración inicial del ${fmtDate(valoracion.fecha)} · ${grupoLabels[paciente.grupo] || ''}</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:3px;">Paciente</div>
-          <div style="font-size:13px;font-weight:600;color:white;">${paciente.nombre} ${paciente.apellido}</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4);">${age > 0 ? age + ' años' : ''} · ${esMujer ? 'Femenino' : 'Masculino'}</div>
+  </div>
+</div>
+
+<!-- ═══ RESUMEN CLÍNICO ══════════════════════════════════════════════════════ -->
+<div style="background:#1E7CB5;padding:16px 36px;">
+  <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.6);margin-bottom:6px;">📋 Resumen clínico</div>
+  <p style="font-size:13px;color:white;line-height:1.7;">${resumenClinico}</p>
+</div>
+
+<div style="padding:26px 36px;">
+
+<!-- ═══ PERFIL METABÓLICO ═════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#1E7CB5;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Tu perfil metabólico</div>
+    <div class="sec-line"></div>
+  </div>
+  <div style="background:${perfilMetabolico.bg};border-radius:12px;padding:18px 20px;border-left:4px solid ${perfilMetabolico.color};">
+    <div style="font-size:12px;font-weight:700;color:${perfilMetabolico.color};margin-bottom:10px;">🔬 ${perfilMetabolico.titulo}</div>
+    <p style="font-size:13px;color:#374151;line-height:1.75;margin-bottom:10px;">${perfilMetabolico.explicacion}</p>
+    <div style="background:rgba(0,0,0,0.04);border-radius:8px;padding:10px 14px;">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:${perfilMetabolico.color};letter-spacing:1px;">La intervención · </span>
+      <span style="font-size:12px;color:#374151;">${perfilMetabolico.intervencion}</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COMPOSICIÓN CORPORAL ══════════════════════════════════════════════════ -->
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#1E7CB5;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Composición corporal</div>
+    <div class="sec-line"></div>
+  </div>
+
+  ${valoracion.pct_grasa ? (() => {
+    const g = parseFloat(valoracion.pct_grasa);
+    const normal = esMujer ? 28 : 20;
+    const exceso = g > normal ? (g - normal).toFixed(1) : null;
+    const kgExceso = exceso && valoracion.peso ? ((parseFloat(exceso)/100)*parseFloat(valoracion.peso)).toFixed(1) : null;
+    const status = g > normal + 8 ? {c:'#B02020',bg:'#FEF2F2',bot:'#FECACA',tc:'#7F1D1D'} : g > normal ? {c:'#C25A00',bg:'#FFF3E0',bot:'#FDDCB5',tc:'#7A3300'} : {c:'#1A7A4A',bg:'#E8F5EE',bot:'#D1FAE5',tc:'#064E2E'};
+    return `
+    <div class="dato" style="background:${status.bg};border-left:4px solid ${status.c};">
+      <div class="dato-header">
+        <div>
+          <div class="dato-label" style="color:${status.c};">% Grasa corporal</div>
+          <div class="dato-valor" style="color:${status.c};">${g}%</div>
+          <div class="dato-ref" style="color:${status.c};">Normal ${esMujer ? '(mujeres)' : '(hombres)'}: ${esMujer ? '18–28%' : '10–20%'}</div>
         </div>
-        <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:3px;">${paciente.cirugia ? 'Procedimiento' : 'Historia Clínica'}</div>
-          <div style="font-size:13px;font-weight:600;color:white;">${paciente.cirugia || paciente.historia_clinica || '—'}</div>
-          ${paciente.fecha_cirugia ? `<div style="font-size:10px;color:rgba(255,255,255,0.4);">Fecha: ${fmtDate(paciente.fecha_cirugia)}</div>` : `<div style="font-size:10px;color:rgba(255,255,255,0.4);">Terapeuta: ${valoracion.terapeuta_nombre || '—'}</div>`}
+        <div style="text-align:right;">
+          ${exceso ? `<div style="background:${status.c};color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">+${exceso}% sobre el rango</div>` : '<div style="background:#1A7A4A;color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">En rango ✓</div>'}
+          ${kgExceso ? `<div style="font-size:10px;color:${status.c};margin-top:4px;">≈ ${kgExceso} kg de grasa a transformar</div>` : ''}
+          ${fmi ? `<div style="font-size:10px;color:${status.c};margin-top:2px;">Índice de masa grasa: ${fmi} kg/m²</div>` : ''}
         </div>
-        <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:3px;">Riesgo cardiovascular</div>
-          <div style="font-size:15px;font-weight:700;color:${riesgoCV.color.replace('#', '#')};" >${riesgoCV.nivel}</div>
-          <div style="display:flex;gap:3px;margin-top:4px;">${['Bajo','Moderado','Alto'].map(n => `<div style="flex:1;height:4px;border-radius:2px;background:${n===riesgoCV.nivel?riesgoCV.color:'rgba(255,255,255,0.15)'};"></div>`).join('')}</div>
-        </div>
-        ${edadMetab ? `<div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:3px;">Edad metabólica</div>
-          <div style="font-size:15px;font-weight:700;color:${edadMetab > age + 5 ? '#FCA5A5' : edadMetab > age ? '#FDE68A' : '#86EFAC'};">${edadMetab} años</div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.4);">Tu edad real: ${age} años</div>
-        </div>` : `<div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:10px 14px;">
-          <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:3px;">Historia Clínica</div>
-          <div style="font-size:13px;font-weight:600;color:white;">${paciente.historia_clinica || '—'}</div>
-        </div>`}
       </div>
-    </div>
-  </div>
+      <p class="dato-p" style="color:${status.tc};">
+        <strong>¿Qué significa?</strong> Tu cuerpo tiene ${exceso ? `un ${exceso}% más de grasa de lo que necesita para funcionar de manera óptima` : 'grasa corporal en rango saludable'}. La grasa en exceso no es solo estética — afecta directamente cómo procesas la energía, tus niveles hormonales y tu metabolismo basal.${exceso && valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes) ? ' En tu caso, la grasa elevada y la pre-diabetes se refuerzan mutuamente: una contribuye a la otra.' : ''}
+      </p>
+      <div style="background:${status.bot};border-radius:6px;padding:8px 12px;">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:${status.c};letter-spacing:1px;">Lo que va a pasar · </span>
+        <span class="dato-interv" style="color:${status.tc};">El entrenamiento en Zona 2 convierte la grasa en combustible. En 4 semanas comenzarás a notar cambios en medidas. En 12 semanas, en los porcentajes.</span>
+      </div>
+    </div>`;
+  })() : ''}
 
-  <!-- INTRO PERSONALIZADA -->
-  <div style="background:#1E7CB5;padding:16px 36px;">
-    <p style="font-size:13px;color:white;line-height:1.6;">
-      <strong>${nombre1}, este documento es tuyo.</strong> No es un reporte médico lleno de términos que nadie entiende. Es una explicación clara de <em>cómo está tu cuerpo hoy</em>, qué significa cada número y qué va a cambiar con el programa IMC. Léelo con calma — es tu punto de partida.
-    </p>
-  </div>
+  ${valoracion.masa_muscular ? (() => {
+    const m = parseFloat(valoracion.masa_muscular);
+    const deficit = m < (esMujer ? 30 : 36) ? ((esMujer ? 30 : 36) - m).toFixed(1) : null;
+    return `
+    <div class="dato" style="background:#EFF6FF;border-left:4px solid #1E7CB5;">
+      <div class="dato-header">
+        <div>
+          <div class="dato-label" style="color:#1E7CB5;">Masa muscular esquelética</div>
+          <div class="dato-valor" style="color:#1E7CB5;">${m} kg</div>
+          <div class="dato-ref" style="color:#1E7CB5;">Normal ${esMujer ? '(mujeres)' : '(hombres)'}: ${esMujer ? '≥30 kg' : '≥36 kg'}${smi ? ' · SMI: ' + smi + ' kg/m²' : ''}</div>
+        </div>
+        <div style="text-align:right;">
+          ${deficit ? `<div style="background:#C25A00;color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">Déficit: ${deficit} kg</div>` : '<div style="background:#1A7A4A;color:white;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">En rango ✓</div>'}
+          ${ratioMusGrasa ? `<div style="font-size:10px;color:#1E7CB5;margin-top:4px;">Ratio músculo/grasa: ${ratioMusGrasa} ${parseFloat(ratioMusGrasa) >= 1 ? '✓' : '↓'}</div>` : ''}
+        </div>
+      </div>
+      <p class="dato-p" style="color:#1E40AF;">
+        <strong>¿Qué significa?</strong> El músculo es tu motor metabólico — cada kilogramo quema entre 13 y 20 calorías al día en reposo. ${deficit ? `Con un déficit de ${deficit} kg de músculo, tu metabolismo basal está operando por debajo de su potencial. Esto también mejora la sensibilidad a la insulina, algo especialmente importante en tu caso.` : 'Tu masa muscular es una fortaleza — el programa la preservará y aumentará.'}
+      </p>
+      <div style="background:#BFDBFE;border-radius:6px;padding:8px 12px;">
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:#1E7CB5;letter-spacing:1px;">Lo que va a pasar · </span>
+        <span class="dato-interv" style="color:#1E40AF;">El entrenamiento de fuerza 2–3 veces por semana construirá músculo de forma progresiva, acelerando tu metabolismo en reposo.</span>
+      </div>
+    </div>`;
+  })() : ''}
 
-  <div style="padding:24px 36px;">
-
-    <!-- SEPARADOR -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-      <div style="width:3px;height:20px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
-      <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Tu composición corporal explicada</h2>
-      <div style="flex:1;height:1px;background:#DDE3EA;"></div>
-    </div>
-
-    ${seccionGrasa()}
-    ${seccionMusculo()}
-    ${seccionVo2()}
-
-    <!-- METABOLISMO -->
-    ${seccionMetabolismo()}
-
-    <!-- ZONAS -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;margin-top:8px;">
-      <div style="width:3px;height:20px;background:#1E7CB5;border-radius:2px;flex-shrink:0;"></div>
-      <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">Cómo entrenar en tu rango correcto</h2>
-      <div style="flex:1;height:1px;background:#DDE3EA;"></div>
-    </div>
-    ${seccionZonas()}
-
-    <!-- ALERTAS -->
-    ${((valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes)) || (valoracion.spo2 && parseFloat(valoracion.spo2) < 94) || (valoracion.fc_reposo && parseInt(valoracion.fc_reposo) > 90)) ? `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <div style="width:3px;height:20px;background:#B02020;border-radius:2px;flex-shrink:0;"></div>
-      <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#B02020;font-weight:700;">Lo que debes saber sobre tu salud</h2>
-      <div style="flex:1;height:1px;background:#DDE3EA;"></div>
-    </div>
-    ${seccionAlertas()}` : ''}
-
-    <!-- OBJETIVOS -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-      <div style="width:3px;height:20px;background:#0B1F3B;border-radius:2px;flex-shrink:0;"></div>
-      <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#0B1F3B;font-weight:700;">A dónde vamos</h2>
-      <div style="flex:1;height:1px;background:#DDE3EA;"></div>
-    </div>
-    ${seccionObjetivos()}
-
-    <!-- DIAGNÓSTICO -->
-    ${valoracion.diagnostico ? `
-    <div style="background:#F4F6F8;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#4B647A;margin-bottom:8px;">📋 Diagnóstico fisioterapéutico</div>
-      <p style="font-size:13px;color:#0B1F3B;line-height:1.7;">${valoracion.diagnostico}</p>
-      ${valoracion.fortalezas ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #DDE3EA;"><span style="font-size:10px;font-weight:700;color:#1A7A4A;text-transform:uppercase;">✓ Tus fortalezas: </span><span style="font-size:12px;color:#1A7A4A;">${valoracion.fortalezas}</span></div>` : ''}
+  <!-- Índices complementarios -->
+  ${(grasaVisceral || indCinturaTalla || indCintCadera) ? `
+  <div class="grid3" style="margin-top:4px;">
+    ${grasaVisceral ? `
+    <div class="mini" style="background:${grasaVisceral >= 13 ? '#FEF2F2' : grasaVisceral >= 10 ? '#FFF3E0' : '#E8F5EE'};border:1.5px solid ${grasaVisceral >= 13 ? '#FCA5A5' : grasaVisceral >= 10 ? '#FDE68A' : '#BBF7D0'};">
+      <div class="mini-l" style="color:${grasaVisceral >= 13 ? '#B02020' : grasaVisceral >= 10 ? '#C25A00' : '#1A7A4A'};">Grasa visceral</div>
+      <div class="mini-v" style="color:${grasaVisceral >= 13 ? '#B02020' : grasaVisceral >= 10 ? '#C25A00' : '#1A7A4A'};">${grasaVisceral}<span class="mini-u">/20</span></div>
+      <div class="mini-d" style="color:${grasaVisceral >= 13 ? '#7F1D1D' : grasaVisceral >= 10 ? '#7A3300' : '#064E2E'};">${grasaVisceral >= 13 ? '⚠ Alta — rodea órganos internos' : grasaVisceral >= 10 ? '⚠ Límite de riesgo (≥10)' : '✓ En rango normal (1–9)'}</div>
     </div>` : ''}
+    ${indCinturaTalla ? `
+    <div class="mini" style="background:${parseFloat(indCinturaTalla) > 0.5 ? '#FFF3E0' : '#E8F5EE'};border:1.5px solid ${parseFloat(indCinturaTalla) > 0.5 ? '#FDE68A' : '#BBF7D0'};">
+      <div class="mini-l" style="color:${parseFloat(indCinturaTalla) > 0.5 ? '#C25A00' : '#1A7A4A'};">Índice cintura/talla</div>
+      <div class="mini-v" style="color:${parseFloat(indCinturaTalla) > 0.5 ? '#C25A00' : '#1A7A4A'};">${indCinturaTalla}</div>
+      <div class="mini-d" style="color:${parseFloat(indCinturaTalla) > 0.5 ? '#7A3300' : '#064E2E'};">${parseFloat(indCinturaTalla) > 0.5 ? '⚠ >0.50 indica riesgo cardiometabólico' : '✓ En rango normal (<0.50)'}</div>
+    </div>` : ''}
+    ${indCintCadera ? `
+    <div class="mini" style="background:${parseFloat(indCintCadera) > (esMujer ? 0.85 : 0.90) ? '#FFF3E0' : '#E8F5EE'};border:1.5px solid ${parseFloat(indCintCadera) > (esMujer ? 0.85 : 0.90) ? '#FDE68A' : '#BBF7D0'};">
+      <div class="mini-l" style="color:${parseFloat(indCintCadera) > (esMujer ? 0.85 : 0.90) ? '#C25A00' : '#1A7A4A'};">Índice cintura/cadera</div>
+      <div class="mini-v" style="color:${parseFloat(indCintCadera) > (esMujer ? 0.85 : 0.90) ? '#C25A00' : '#1A7A4A'};">${indCintCadera}</div>
+      <div class="mini-d" style="color:${parseFloat(indCintCadera) > (esMujer ? 0.85 : 0.90) ? '#7A3300' : '#064E2E'};">${parseFloat(indCintCadera) > (esMujer ? 0.85 : 0.90) ? `⚠ Riesgo ${esMujer ? '(>0.85 en mujeres)' : '(>0.90 en hombres)'}` : '✓ Distribución normal'}</div>
+    </div>` : ''}
+  </div>` : ''}
+</div>
 
-    <!-- FIRMAS -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;padding-top:20px;border-top:1.5px solid #DDE3EA;">
+<!-- ═══ CAPACIDAD FUNCIONAL ═══════════════════════════════════════════════════ -->
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#7B2D8B;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Capacidad funcional</div>
+    <div class="sec-line"></div>
+  </div>
+
+  ${vo2Clasificacion ? `
+  <div class="dato" style="background:${vo2Clasificacion.color === '#1A7A4A' ? '#E8F5EE' : vo2Clasificacion.color === '#C25A00' ? '#FFF3E0' : '#FEF2F2'};border-left:4px solid ${vo2Clasificacion.color};">
+    <div class="dato-header">
       <div>
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;font-weight:600;margin-bottom:28px;">Terapeuta Física IMC</div>
-        <div style="border-bottom:1.5px solid #DDE3EA;margin-bottom:5px;"></div>
-        <div style="font-size:11px;color:#6E6E70;">${valoracion.terapeuta_nombre || '________________________'}</div>
+        <div class="dato-label" style="color:${vo2Clasificacion.color};">VO2max — Capacidad aeróbica</div>
+        <div class="dato-valor" style="color:${vo2Clasificacion.color};">${vo2Clasificacion.valor} <span style="font-size:14px;">ml/kg/min</span></div>
+        <div class="dato-ref" style="color:${vo2Clasificacion.color};">Clasificación ACSM para ${age} años · ${esMujer ? 'Mujeres' : 'Hombres'}</div>
       </div>
-      <div>
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;font-weight:600;margin-bottom:28px;">Recibido y entendido por</div>
-        <div style="border-bottom:1.5px solid #DDE3EA;margin-bottom:5px;"></div>
-        <div style="font-size:11px;color:#6E6E70;">${paciente.nombre} ${paciente.apellido} · ${fmtDate(valoracion.fecha)}</div>
+      <div style="text-align:right;">
+        <div style="background:${vo2Clasificacion.color};color:white;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:4px;">${vo2Clasificacion.nivel}</div>
+        <div style="font-size:10px;color:${vo2Clasificacion.color};">Percentil ${vo2Clasificacion.percentil} para su grupo</div>
+        ${edadMetab ? `<div style="font-size:10px;color:${vo2Clasificacion.color};margin-top:2px;">Edad metabólica: ~${edadMetab} años</div>` : ''}
       </div>
     </div>
-  </div>
+    <p class="dato-p" style="color:#374151;">
+      <strong>¿Qué significa?</strong> El VO2max mide cuánto oxígeno puede procesar tu cuerpo por kilogramo de peso durante el ejercicio máximo. Es el indicador más preciso de salud cardiovascular y longevidad. Estar en el percentil ${vo2Clasificacion.percentil} significa que el ${vo2Clasificacion.percentil}% de personas de tu edad y sexo tienen una capacidad igual o menor.${edadMetab && edadMetab > age ? ` En términos metabólicos, tu capacidad aeróbica corresponde a la de una persona de ~${edadMetab} años.` : ''}
+    </p>
+    <div style="background:rgba(0,0,0,0.06);border-radius:6px;padding:8px 12px;">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;color:${vo2Clasificacion.color};letter-spacing:1px;">Lo que va a pasar · </span>
+      <span class="dato-interv" style="color:#374151;">Con 3 sesiones de cardio en Zona 2 por semana, el VO2max mejora 3–5 puntos en 12 semanas. Ese avance equivale a que tu cuerpo funcione varios años más joven.</span>
+    </div>
+  </div>` : ''}
 
-  <!-- FOOTER -->
-  <div style="background:#0B1F3B;padding:12px 36px;display:flex;justify-content:space-between;align-items:center;">
-    <div style="color:rgba(255,255,255,0.5);font-size:10px;"><strong style="color:rgba(255,255,255,0.9);display:block;font-size:11px;margin-bottom:1px;">IMC – Instituto Metabólico Corporal</strong>Documento confidencial · Uso exclusivo del paciente</div>
-    <div style="text-align:right;color:rgba(255,255,255,0.35);font-size:9px;">by GMEDiQ · ${new Date().getFullYear()}<br>HC: ${paciente.historia_clinica || '—'}</div>
+  ${(valoracion.dina_d || valoracion.sit_stand) ? `
+  <div class="grid2" style="margin-top:4px;">
+    ${valoracion.dina_d ? (() => {
+      const fd = parseFloat(valoracion.dina_d);
+      const normalMin = esMujer ? 20 : 35;
+      const ok = fd >= normalMin;
+      const fr = fuerzaRelativa;
+      return `
+      <div class="mini" style="background:${ok ? '#E8F5EE' : '#FFF3E0'};border:1.5px solid ${ok ? '#BBF7D0' : '#FDE68A'};">
+        <div class="mini-l" style="color:${ok ? '#1A7A4A' : '#C25A00'};">Dinamometría · Fuerza de agarre</div>
+        <div class="mini-v" style="color:${ok ? '#1A7A4A' : '#C25A00'};">${fd}<span class="mini-u"> kg</span></div>
+        ${fr ? `<div style="font-size:10px;color:${ok ? '#1A7A4A' : '#C25A00'};margin-top:2px;">Fuerza relativa: ${fr} kg/kg</div>` : ''}
+        <div class="mini-d" style="color:${ok ? '#064E2E' : '#7A3300'};">${ok ? `✓ En rango normal (${esMujer ? '20–35 kg' : '35–55 kg'})` : `Por debajo del rango. Indicador de fuerza muscular general.`}</div>
+      </div>`;
+    })() : ''}
+    ${valoracion.sit_stand ? (() => {
+      const ss = parseInt(valoracion.sit_stand);
+      const ok = ss >= 20;
+      const spoDrop = valoracion.spo2_post && valoracion.spo2_pre ? (parseFloat(valoracion.spo2_pre) - parseFloat(valoracion.spo2_post)).toFixed(1) : null;
+      return `
+      <div class="mini" style="background:${ok ? '#E8F5EE' : '#FFF3E0'};border:1.5px solid ${ok ? '#BBF7D0' : '#FDE68A'};">
+        <div class="mini-l" style="color:${ok ? '#1A7A4A' : '#C25A00'};">Test Sit to Stand · Fuerza funcional</div>
+        <div class="mini-v" style="color:${ok ? '#1A7A4A' : '#C25A00'};">${ss}<span class="mini-u"> reps/min</span></div>
+        ${spoDrop ? `<div style="font-size:10px;color:${parseFloat(spoDrop) > 4 ? '#B02020' : '#4B647A'};margin-top:2px;">Caída SpO2: ${spoDrop}% ${parseFloat(spoDrop) > 4 ? '⚠' : '✓'}</div>` : ''}
+        <div class="mini-d" style="color:${ok ? '#064E2E' : '#7A3300'};">${ok ? '✓ Buena fuerza funcional de piernas (≥20 reps)' : 'Por debajo del rango. Mejora rápida con entrenamiento tren inferior.'}</div>
+      </div>`;
+    })() : ''}
+  </div>` : ''}
+</div>
+
+<!-- ═══ METABOLISMO BASAL ══════════════════════════════════════════════════════ -->
+${tmb ? `
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#C25A00;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Metabolismo basal</div>
+    <div class="sec-line"></div>
   </div>
+  <div style="background:#FFF3E0;border-radius:12px;padding:16px 20px;display:flex;gap:20px;align-items:center;border-left:4px solid #C25A00;">
+    <div style="flex-shrink:0;text-align:center;">
+      <div style="font-size:38px;font-weight:800;color:#C25A00;line-height:1;">${tmb}</div>
+      <div style="font-size:11px;color:#7A3300;">kcal / día</div>
+    </div>
+    <div style="flex:1;border-left:1.5px solid #FDDCB5;padding-left:18px;">
+      <p style="font-size:12px;color:#7A3300;line-height:1.65;margin-bottom:6px;">Tu cuerpo quema <strong>${tmb} calorías al día solo para vivir</strong> — respirar, bombear sangre, mantener temperatura corporal. Este es tu piso energético (TMB calculado con fórmula Harris-Benedict).</p>
+      <p style="font-size:12px;color:#7A3300;line-height:1.65;">Con tu nivel de actividad actual, tu gasto calórico total estimado es de <strong>${Math.round(tmb * 1.55)}–${Math.round(tmb * 1.65)} kcal/día</strong>. Tu nutricionista ajustará el plan alimentario sobre este dato.</p>
+    </div>
+  </div>
+</div>` : ''}
+
+<!-- ═══ ZONAS CARDÍACAS ════════════════════════════════════════════════════════ -->
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#1E7CB5;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Tu plan de intensidad cardíaca</div>
+    <div class="sec-line"></div>
+  </div>
+  <p style="font-size:12px;color:#6E6E70;margin-bottom:14px;line-height:1.6;">Calculadas con la fórmula de Karvonen usando tu FC real en reposo (${valoracion.fc_reposo || '—'} bpm) y tu FC máxima teórica (${fcmax || '—'} bpm). Entrenar en la zona correcta no es solo preferencia — es lo que determina qué pasa fisiológicamente en tu cuerpo.</p>
+  <div class="grid3">
+    <div class="mini" style="background:#EFF6FF;border:1.5px solid #BFDBFE;">
+      <div class="mini-l" style="color:#1D4ED8;">Zona 1 · Calentamiento</div>
+      <div class="mini-v" style="color:#1D4ED8;">${z1.lo}–${z1.hi} <span class="mini-u">bpm</span></div>
+      <div class="mini-d" style="color:#1E40AF;">Conversación fluida. Calentamiento y enfriamiento. Puedes hablar con normalidad.</div>
+    </div>
+    <div class="mini" style="background:#F0FDF4;border:2px solid #15803D;">
+      <div class="mini-l" style="color:#15803D;">Zona 2 · Tu zona principal 🎯</div>
+      <div class="mini-v" style="color:#15803D;">${z2.lo}–${z2.hi} <span class="mini-u">bpm</span></div>
+      <div class="mini-d" style="color:#166534;">Aquí pasan las cosas. Quema de grasa + mejora aeróbica + sensibilidad a insulina. Puedes hablar pero con esfuerzo.</div>
+    </div>
+    <div class="mini" style="background:#FFFBEB;border:1.5px solid #FDE68A;">
+      <div class="mini-l" style="color:#B45309;">Zona 3 · Alta intensidad</div>
+      <div class="mini-v" style="color:#B45309;">${z3.lo}–${z3.hi} <span class="mini-u">bpm</span></div>
+      <div class="mini-d" style="color:#92400E;">${paciente.grupo === 'prequirurgico' ? 'Evitar en esta fase. Tu base aeróbica aún está en desarrollo.' : 'Intervalos y HIIT. Cuando tu base aeróbica esté consolidada.'}</div>
+    </div>
+  </div>
+  <div style="background:#F4F6F8;border-radius:8px;padding:10px 14px;margin-top:8px;">
+    <p style="font-size:11px;color:#374151;line-height:1.6;"><strong>¿Por qué Zona 2 es tu objetivo principal?</strong> En esta intensidad tu cuerpo usa predominantemente grasa como combustible, mejora la mitocondria (las "fábricas de energía" de las células), aumenta la sensibilidad a la insulina y fortalece el corazón sin sobrecargarlo. Para tu perfil metabólico, el 70–80% de tu entrenamiento debería estar en esta zona.</p>
+  </div>
+</div>
+
+<!-- ═══ ALERTAS CLÍNICAS ══════════════════════════════════════════════════════ -->
+${alertas.length > 0 ? `
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#B02020;"></div>
+    <div class="sec-h" style="color:#B02020;">Lo que debes saber sobre tu salud</div>
+    <div class="sec-line"></div>
+  </div>
+  ${alertas.map(a => `
+  <div style="background:${a.bg};border-radius:10px;padding:14px 16px;margin-bottom:8px;border-left:4px solid ${a.color};">
+    <div style="font-size:12px;font-weight:700;color:${a.color};margin-bottom:6px;">${a.icono} ${a.titulo}</div>
+    <p style="font-size:12px;color:#374151;line-height:1.7;">${a.desc}</p>
+  </div>`).join('')}
+</div>` : ''}
+
+<!-- ═══ SEGUIMIENTO ═══════════════════════════════════════════════════════════ -->
+${(seguimiento4.length > 0 || seguimiento12.length > 0) ? `
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#0B1F3B;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Lo que vamos a medir juntos</div>
+    <div class="sec-line"></div>
+  </div>
+  <div class="grid2">
+    ${seguimiento4.length > 0 ? `
+    <div style="background:#F4F6F8;border-radius:10px;padding:14px 16px;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#4B647A;letter-spacing:1px;margin-bottom:10px;">📅 Evaluación a 4 semanas · ${fmtMeta(semanas4)}</div>
+      ${seguimiento4.map(s => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #DDE3EA;">
+        <span style="font-size:11px;color:#0B1F3B;font-weight:600;">${s.label}</span>
+        <div style="text-align:right;">
+          <span style="font-size:11px;color:#6E6E70;">${s.actual}</span>
+          <span style="color:#1E7CB5;margin:0 4px;">→</span>
+          <span style="font-size:12px;font-weight:700;color:#1A7A4A;">${s.esperado}</span>
+        </div>
+      </div>`).join('')}
+    </div>` : ''}
+    ${seguimiento12.length > 0 ? `
+    <div style="background:#0B1F3B;border-radius:10px;padding:14px 16px;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#1E7CB5;letter-spacing:1px;margin-bottom:10px;">🎯 Meta a 12 semanas · ${fmtMeta(semanas12)}</div>
+      ${seguimiento12.map(s => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <span style="font-size:11px;color:rgba(255,255,255,0.7);font-weight:600;">${s.label}</span>
+        <div style="text-align:right;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.35);">${s.actual}</span>
+          <span style="color:#1E7CB5;margin:0 4px;">→</span>
+          <span style="font-size:13px;font-weight:800;color:white;">${s.esperado}</span>
+        </div>
+      </div>`).join('')}
+    </div>` : ''}
+  </div>
+</div>` : ''}
+
+<!-- ═══ DIAGNÓSTICO ═══════════════════════════════════════════════════════════ -->
+${valoracion.diagnostico ? `
+<div class="seccion">
+  <div class="sec-title">
+    <div class="sec-bar" style="height:20px;background:#4B647A;"></div>
+    <div class="sec-h" style="color:#0B1F3B;">Diagnóstico fisioterapéutico</div>
+    <div class="sec-line"></div>
+  </div>
+  <div style="background:#F4F6F8;border-radius:10px;padding:16px 18px;">
+    <p style="font-size:13px;color:#0B1F3B;line-height:1.75;">${valoracion.diagnostico}</p>
+    ${valoracion.fortalezas ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #DDE3EA;font-size:12px;color:#1A7A4A;"><strong>✓ Fortalezas:</strong> ${valoracion.fortalezas}</div>` : ''}
+    ${valoracion.limitantes ? `<div style="margin-top:6px;font-size:12px;color:#C25A00;"><strong>⚠ Limitantes:</strong> ${valoracion.limitantes}</div>` : ''}
+  </div>
+</div>` : ''}
+
+<!-- ═══ FIRMAS ═════════════════════════════════════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;padding-top:20px;border-top:1.5px solid #DDE3EA;">
+  <div>
+    <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;font-weight:600;margin-bottom:28px;">Terapeuta Física IMC</div>
+    <div style="border-bottom:1.5px solid #DDE3EA;margin-bottom:5px;"></div>
+    <div style="font-size:11px;color:#6E6E70;">${valoracion.terapeuta_nombre || '________________________'}</div>
+  </div>
+  <div>
+    <div style="font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:#4B647A;font-weight:600;margin-bottom:28px;">Recibido y entendido por</div>
+    <div style="border-bottom:1.5px solid #DDE3EA;margin-bottom:5px;"></div>
+    <div style="font-size:11px;color:#6E6E70;">${paciente.nombre} ${paciente.apellido} · ${fmtDate(valoracion.fecha)}</div>
+  </div>
+</div>
+</div>
+
+<!-- ═══ FOOTER ════════════════════════════════════════════════════════════════ -->
+<div style="background:#0B1F3B;padding:12px 36px;display:flex;justify-content:space-between;align-items:center;">
+  <div style="color:rgba(255,255,255,0.5);font-size:10px;"><strong style="color:rgba(255,255,255,0.9);display:block;font-size:11px;margin-bottom:1px;">IMC – Instituto Metabólico Corporal</strong>Documento confidencial · Uso exclusivo del paciente</div>
+  <div style="text-align:right;color:rgba(255,255,255,0.35);font-size:9px;">by GMEDiQ · ${new Date().getFullYear()}<br>HC: ${paciente.historia_clinica || '—'}</div>
+</div>
 </div>
 <button class="print-btn" onclick="window.print()">🖨 Imprimir / Guardar PDF</button>
 </body></html>`;
