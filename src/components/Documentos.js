@@ -342,7 +342,7 @@ export function generarInforme(paciente, valoracion) {
     ${seccionZonas()}
 
     <!-- ALERTAS -->
-    ${alertas.length > 0 || (valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes)) || (valoracion.spo2 && parseFloat(valoracion.spo2) < 94) || (valoracion.fc_reposo && parseInt(valoracion.fc_reposo) > 90) ? `
+    ${((valoracion.limitantes && /diab|prediab/i.test(valoracion.limitantes)) || (valoracion.spo2 && parseFloat(valoracion.spo2) < 94) || (valoracion.fc_reposo && parseInt(valoracion.fc_reposo) > 90)) ? `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <div style="width:3px;height:20px;background:#B02020;border-radius:2px;flex-shrink:0;"></div>
       <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#B02020;font-weight:700;">Lo que debes saber sobre tu salud</h2>
