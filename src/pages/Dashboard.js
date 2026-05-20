@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import Pacientes from '../components/Pacientes';
+import Pacientes from '../components/PanelGestionPacientes';
 import PacienteDetalle from '../components/PacienteDetalle';
 import Usuarios from './Usuarios';
 import Agenda from './Agenda';
