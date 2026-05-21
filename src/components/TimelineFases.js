@@ -16,6 +16,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { generarPDFGuiaFase } from './PDFNutricion';
+import EditorFase from './EditorFase';
 
 const B = {
   navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
@@ -37,7 +38,11 @@ export default function TimelineFases({ paciente, protocolo, usuario, onVolver }
   const [loading, setLoading] = useState(true);
   const [modalAsignar, setModalAsignar] = useState(null);    // objeto fase si se está asignando
   const [modalDetalle, setModalDetalle] = useState(null);    // fase del paciente que se está viendo
+  const [editorFase, setEditorFase] = useState(null);        // { fase, modo, registroFase? }
   const [toast, setToast] = useState(null);
+
+  // Verificar si el usuario puede editar (nutri o admin)
+  const puedeEditar = ['admin', 'nutricionista'].includes(usuario?.rol);
 
   const C = COLORS[protocolo] || COLORS.manga;
 
@@ -350,7 +355,28 @@ export default function TimelineFases({ paciente, protocolo, usuario, onVolver }
           registro={modalDetalle}
           color={C.primary}
           paciente={paciente}
+          puedeEditar={puedeEditar}
           onClose={() => setModalDetalle(null)}
+          onEditarGlobal={() => setEditorFase({ fase: modalDetalle.fases_nutricionales, modo: 'global', registroFase: modalDetalle._previa ? null : modalDetalle })}
+          onEditarPersonalizada={() => setEditorFase({ fase: modalDetalle.fases_nutricionales, modo: 'personalizada', registroFase: modalDetalle._previa ? null : modalDetalle })}
+        />
+      )}
+
+      {/* Editor de fase (global o personalizada) */}
+      {editorFase && (
+        <EditorFase
+          fase={editorFase.fase}
+          paciente={paciente}
+          registroFase={editorFase.registroFase}
+          modo={editorFase.modo}
+          usuario={usuario}
+          onClose={() => setEditorFase(null)}
+          onGuardado={() => { 
+            setEditorFase(null); 
+            setModalDetalle(null);
+            showToast(editorFase.modo === 'global' ? 'Plantilla actualizada ✓' : 'Personalización guardada ✓'); 
+            cargarTodo(); 
+          }}
         />
       )}
 
@@ -486,9 +512,24 @@ function ModalAsignarFase({ fase, color, onCancel, onConfirmar }) {
 // ────────────────────────────────────────────────────────────────────────
 // MODAL: Detalle de fase (muestra contenido completo de la guía)
 // ────────────────────────────────────────────────────────────────────────
-function ModalDetalleFase({ registro, color, paciente, onClose }) {
-  const fase = registro.fases_nutricionales;
-  if (!fase) return null;
+function ModalDetalleFase({ registro, color, paciente, puedeEditar, onClose, onEditarGlobal, onEditarPersonalizada }) {
+  const plantilla = registro.fases_nutricionales;
+  if (!plantilla) return null;
+
+  // Fase EFECTIVA = plantilla + overrides (si está personalizada)
+  const isPrevia = registro._previa;
+  const usarOverrides = registro.personalizada && !isPrevia;
+  const fase = {
+    ...plantilla,
+    indicaciones:           usarOverrides && registro.override_indicaciones    !== null && registro.override_indicaciones    !== undefined ? registro.override_indicaciones    : plantilla.indicaciones,
+    restricciones:          usarOverrides && registro.override_restricciones   !== null && registro.override_restricciones   !== undefined ? registro.override_restricciones   : plantilla.restricciones,
+    recomendaciones:        usarOverrides && registro.override_recomendaciones !== null && registro.override_recomendaciones !== undefined ? registro.override_recomendaciones : plantilla.recomendaciones,
+    suplementacion:         usarOverrides && registro.override_suplementacion  !== null && registro.override_suplementacion  !== undefined ? registro.override_suplementacion  : plantilla.suplementacion,
+    menu_establecido:       usarOverrides && registro.override_menu                                                                          ? registro.override_menu                                                                            : plantilla.menu_establecido,
+    alimentos_permitidos:   usarOverrides && registro.override_alimentos                                                                     ? registro.override_alimentos                                                                       : plantilla.alimentos_permitidos,
+    duracion_dias_default:  usarOverrides && registro.override_duracion_dias                                                                  ? registro.override_duracion_dias                                                                  : plantilla.duracion_dias_default,
+    hidratacion_litros:     usarOverrides && registro.override_hidratacion                                                                    ? registro.override_hidratacion                                                                    : plantilla.hidratacion_litros,
+  };
 
   return (
     <div style={modalBg()} onClick={onClose}>
@@ -538,13 +579,40 @@ function ModalDetalleFase({ registro, color, paciente, onClose }) {
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${B.grayMd}` }}>
-            <button 
-              onClick={() => generarPDFGuiaFase({ fase, paciente, registroFase: registro, usuario: null })} 
-              style={{ ...btnPrimary(B.orange), display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              📄 Generar PDF de esta fase
-            </button>
+          {/* Indicador si está personalizada */}
+          {registro?.personalizada && !registro._previa && (
+            <div style={{ marginTop: 16, padding: '8px 14px', background: '#F3E8FF', borderRadius: 8, borderLeft: `3px solid #7C3AED`, fontSize: 11, color: '#7C3AED', fontWeight: 600 }}>
+              👤 Esta fase ha sido <strong>personalizada</strong> para {paciente?.nombre || 'este paciente'}.
+            </div>
+          )}
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 18, paddingTop: 16, borderTop: `1px solid ${B.grayMd}`, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button 
+                onClick={() => generarPDFGuiaFase({ fase, paciente, registroFase: registro, usuario: null })} 
+                style={{ ...btnPrimary(B.orange), display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                📄 Generar PDF
+              </button>
+              {puedeEditar && onEditarGlobal && (
+                <button 
+                  onClick={onEditarGlobal}
+                  style={{ ...btnPrimary('#1E7CB5'), display: 'flex', alignItems: 'center', gap: 6 }}
+                  title="Editar la plantilla global (afecta a todos los pacientes futuros)"
+                >
+                  🌐 Editar plantilla
+                </button>
+              )}
+              {puedeEditar && onEditarPersonalizada && !registro?._previa && (
+                <button 
+                  onClick={onEditarPersonalizada}
+                  style={{ ...btnPrimary('#7C3AED'), display: 'flex', alignItems: 'center', gap: 6 }}
+                  title={`Personalizar solo para ${paciente?.nombre || 'este paciente'}`}
+                >
+                  👤 Personalizar paciente
+                </button>
+              )}
+            </div>
             <button onClick={onClose} style={btnSecondaryDark()}>Cerrar</button>
           </div>
         </div>
