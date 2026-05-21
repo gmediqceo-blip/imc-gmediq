@@ -675,17 +675,7 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
 
 // ── TAB NUTRICIÓN ─────────────────────────────────────────────────────────────
 function TabNutricion({ paciente, consultas, onActualizar, usuario }) {
-  const [toast, setToast] = useState(null);
-  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
-  return (
-    <div>
-      <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
-        <p style={{ fontSize: 36, marginBottom: 10 }}>🥗</p>
-        <p style={{ color: B.navy, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Módulo de Nutrición</p>
-        <p style={{ color: B.gray, fontSize: 13 }}>En desarrollo — próximamente disponible cuando se defina el protocolo nutricional de IMC.</p>
-      </div>
-    </div>
-  );
+  return <TabNutricionV2 paciente={paciente} usuario={usuario} />;
 }
 
 
