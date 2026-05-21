@@ -16,6 +16,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import TimelineFases from './TimelineFases';
 import EditorPlanSMAE from './EditorPlanSMAE';
+import AnamnesisNutricional from './AnamnesisNutricional';
+import ConsultaNutricionalV2 from './ConsultaNutricionalV2';
 
 const B = {
   navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
@@ -27,19 +29,23 @@ const B = {
 };
 
 const PROTOCOLOS = {
-  manga:       { nombre: 'Manga Gástrica',           emoji: '🔵', color: B.blue,   tieneFases: true,  bg: B.softBlue },
-  balon:       { nombre: 'Balón Gástrico',           emoji: '🟣', color: B.purple, tieneFases: true,  bg: B.softPurple },
-  glp1:        { nombre: 'GLP-1 (Ozempic/Wegovy)',   emoji: '💊', color: B.orange, tieneFases: false, bg: B.softOrange },
-  conservador: { nombre: 'Conservador IMC',          emoji: '🟢', color: B.green,  tieneFases: false, bg: B.softGreen },
+  manga:       { nombre: 'Manga Gástrica',           emoji: '🔵', color: B.blue,    tieneFases: true,  bg: B.softBlue,   fasesDe: 'manga' },
+  balon:       { nombre: 'Balón Gástrico',           emoji: '🟣', color: B.purple,  tieneFases: true,  bg: B.softPurple, fasesDe: 'balon' },
+  glp1:        { nombre: 'GLP-1 (Ozempic/Wegovy)',   emoji: '💊', color: B.orange,  tieneFases: false, bg: B.softOrange, fasesDe: null    },
+  conservador: { nombre: 'Conservador IMC',          emoji: '🟢', color: B.green,   tieneFases: false, bg: B.softGreen,  fasesDe: null    },
+  bypass:      { nombre: 'Bypass Gástrico',          emoji: '🟡', color: '#F59E0B', tieneFases: true,  bg: '#FEF3C7',    fasesDe: 'manga' },
+  biparticion: { nombre: 'Bipartición de Tránsito',  emoji: '🔴', color: '#DC2626', tieneFases: true,  bg: '#FEE2E2',    fasesDe: 'manga' },
 };
 
 export default function TabNutricionV2({ paciente, usuario }) {
-  const [vista, setVista] = useState('resumen'); // resumen | timeline | editor_smae
+  const [vista, setVista] = useState('resumen'); // resumen | timeline | editor_smae | anamnesis | nueva_consulta | historial_consultas
   const [loading, setLoading] = useState(true);
   const [protocolo, setProtocolo] = useState(null);
   const [faseActual, setFaseActual] = useState(null);
   const [planSmae, setPlanSmae] = useState(null);
   const [historiaFases, setHistoriaFases] = useState([]);
+  const [consultasCount, setConsultasCount] = useState(0);
+  const [consultas, setConsultas] = useState([]);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -58,6 +64,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
 
     // Si el protocolo tiene fases, cargar la fase activa
     if (PROTOCOLOS[codigoProtocolo]?.tieneFases) {
+      // Bypass y Biparticion comparten las fases de manga
       const { data: fases } = await supabase
         .from('paciente_fases')
         .select('*, fases_nutricionales(nombre, descripcion_corta, numero_orden, duracion_dias_default)')
@@ -80,6 +87,16 @@ export default function TabNutricionV2({ paciente, usuario }) {
       .maybeSingle();
 
     setPlanSmae(plan || null);
+
+    // Cargar consultas nutricionales
+    const { data: cons } = await supabase
+      .from('consultas_nutricion_v2')
+      .select('*')
+      .eq('paciente_id', paciente.id)
+      .order('fecha', { ascending: false });
+    setConsultas(cons || []);
+    setConsultasCount((cons || []).length);
+
     setLoading(false);
   };
 
@@ -88,7 +105,8 @@ export default function TabNutricionV2({ paciente, usuario }) {
     return (
       <TimelineFases
         paciente={paciente}
-        protocolo={protocolo}
+        protocolo={PROTOCOLOS[protocolo]?.fasesDe || protocolo}
+        protocoloOriginal={protocolo}
         usuario={usuario}
         onVolver={() => { setVista('resumen'); cargarDatos(); }}
       />
@@ -104,6 +122,41 @@ export default function TabNutricionV2({ paciente, usuario }) {
         planExistente={planSmae}
         onVolver={() => { setVista('resumen'); cargarDatos(); }}
         onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Plan SMAE guardado ✓'); }}
+      />
+    );
+  }
+
+  if (vista === 'anamnesis') {
+    return (
+      <AnamnesisNutricional
+        paciente={paciente}
+        usuario={usuario}
+        onVolver={() => { setVista('resumen'); cargarDatos(); }}
+        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Anamnesis guardada ✓'); }}
+      />
+    );
+  }
+
+  if (vista === 'nueva_consulta') {
+    return (
+      <ConsultaNutricionalV2
+        paciente={paciente}
+        usuario={usuario}
+        protocolo={protocolo}
+        modo="nueva"
+        onVolver={() => { setVista('resumen'); cargarDatos(); }}
+        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Consulta guardada ✓'); }}
+      />
+    );
+  }
+
+  if (vista === 'historial_consultas') {
+    return (
+      <HistorialConsultasNutricion
+        paciente={paciente}
+        consultas={consultas}
+        onVolver={() => setVista('resumen')}
+        onVerConsulta={(c) => { /* TODO ver detalle */ }}
       />
     );
   }
@@ -257,19 +310,19 @@ export default function TabNutricionV2({ paciente, usuario }) {
           <InfoTile titulo="Próxima consulta" valor="Sin agendar" color={B.purple} icon="📅" />
         </div>
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${B.grayLt}`, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={btnSecondary()} disabled>
+          <button style={btnSecondaryActivo(B.blue)} onClick={() => setVista('anamnesis')}>
             📋 Anamnesis nutricional
           </button>
-          <button style={btnSecondary()} disabled>
+          <button style={btnSecondaryActivo(B.green)} onClick={() => setVista('nueva_consulta')}>
             🩺 Nueva consulta
           </button>
-          <button style={btnSecondary()} disabled>
+          <button style={btnSecondaryActivo(B.purple)} onClick={() => setVista('historial_consultas')}>
+            📚 Historial ({consultasCount})
+          </button>
+          <button style={btnSecondary()} disabled title="Próximamente">
             📄 Generar PDF
           </button>
         </div>
-        <p style={{ fontSize: 10, color: B.gray, marginTop: 10, fontStyle: 'italic' }}>
-          💡 Las funciones de anamnesis, consultas y PDF se entregan en la siguiente parte.
-        </p>
       </div>
 
       {/* Toast */}
@@ -371,3 +424,85 @@ function diasDesde(iso) {
   const hoy = new Date();
   return Math.floor((hoy - inicio) / (1000 * 60 * 60 * 24));
 }
+
+
+// ────────────────────────────────────────────────────────────────────────
+// HISTORIAL DE CONSULTAS — vista inline
+// ────────────────────────────────────────────────────────────────────────
+function HistorialConsultasNutricion({ paciente, consultas, onVolver, onVerConsulta }) {
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button onClick={onVolver} style={{ padding: '8px 14px', background: B.white, color: B.navy, border: `1.5px solid ${B.grayMd}`, borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: B.navy, margin: 0 }}>📚 Historial de Consultas Nutricionales</h2>
+          <p style={{ fontSize: 12, color: B.gray, margin: '2px 0 0' }}>
+            {paciente.nombre} {paciente.apellido || ''} · {consultas.length} consultas
+          </p>
+        </div>
+      </div>
+
+      {consultas.length === 0 ? (
+        <div style={{ background: 'white', border: `1px solid ${B.grayMd}`, borderRadius: 12, padding: 60, textAlign: 'center' }}>
+          <div style={{ fontSize: 44, marginBottom: 10 }}>📋</div>
+          <h4 style={{ color: B.navy, marginBottom: 6, fontSize: 14 }}>Sin consultas registradas</h4>
+          <p style={{ color: B.gray, fontSize: 12 }}>Las consultas nutricionales aparecerán aquí cuando las registres.</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {consultas.map(c => (
+            <div key={c.id} style={{
+              background: 'white',
+              border: `1px solid ${B.grayMd}`,
+              borderLeft: `4px solid ${c.tipo === 'anamnesis' ? B.blue : B.green}`,
+              borderRadius: 10,
+              padding: 14,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                    <span style={{
+                      background: c.tipo === 'anamnesis' ? B.softBlue : B.softGreen,
+                      color: c.tipo === 'anamnesis' ? B.blue : B.green,
+                      padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                      textTransform: 'uppercase', letterSpacing: 0.3,
+                    }}>
+                      {c.tipo === 'anamnesis' ? '📋 Anamnesis' : '🩺 Seguimiento'}
+                    </span>
+                    <span style={{ fontSize: 11, color: B.gray }}>
+                      📅 {formatDate(c.fecha)}
+                    </span>
+                  </div>
+                  {c.peso_kg && (
+                    <div style={{ fontSize: 12, color: B.navy }}>
+                      ⚖️ {c.peso_kg} kg
+                      {c.imc && ` · IMC ${c.imc}`}
+                      {c.grasa_pct && ` · ${c.grasa_pct}% grasa`}
+                    </div>
+                  )}
+                  {c.diagnostico && (
+                    <div style={{ fontSize: 11, color: B.gray, marginTop: 4 }}>
+                      🩺 {c.diagnostico.substring(0, 100)}{c.diagnostico.length > 100 ? '...' : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const btnSecondaryActivo = (color) => ({
+  padding: '8px 14px',
+  background: 'white',
+  color: color,
+  border: `1.5px solid ${color}`,
+  borderRadius: 8,
+  fontWeight: 700,
+  fontSize: 12,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+});
