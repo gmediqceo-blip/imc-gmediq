@@ -210,7 +210,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
         {/* NUTRICIÓN */}
         {tab === 'nutricion' && (
-          <TabNutricion paciente={paciente} consultas={consultasNut} onActualizar={fetchTodo} usuario={usuario} />
+          <TabNutricion paciente={pacienteFull} consultas={consultasNut} onActualizar={fetchTodo} usuario={usuario} />
         )}
 
         {/* EJERCICIO */}
