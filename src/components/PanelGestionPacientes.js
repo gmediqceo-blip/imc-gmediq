@@ -437,7 +437,7 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar }) 
       {/* Info paciente */}
       <div>
         <div style={{ fontSize: 13, fontWeight: 700, color: B.navy }}>
-          {paciente.nombre}
+          {paciente.nombre} {paciente.apellido || ''}
         </div>
         <div style={{ fontSize: 11, color: B.gray }}>
           {paciente.email || 'Sin email'}
