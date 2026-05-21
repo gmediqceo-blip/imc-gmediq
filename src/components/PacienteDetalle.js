@@ -7,7 +7,6 @@ import BancoArchivos from './BancoArchivos';
 import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
 import Parametros from './Parametros';
 import SugerenciasIA from './SugerenciasIA';
-import TabNutricionNuevo from './TabNutricion';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -19,6 +18,7 @@ const grupoColors = { transformacion: B.blue, prequirurgico: B.orange, postquiru
 
 export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   const [tab, setTab] = useState('resumen');
+  const [pacienteFull, setPacienteFull] = useState(paciente);
   const [valoraciones, setValoraciones] = useState([]);
   const [consultasMed, setConsultasMed] = useState([]);
   const [consultasNut, setConsultasNut] = useState([]);
@@ -26,20 +26,27 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   const [loading, setLoading] = useState(true);
   const [ejercicios, setEjercicios] = useState([]);
 
-  const age = calcAge(paciente.fecha_nacimiento);
+  const age = calcAge(pacienteFull.fecha_nacimiento);
 
   useEffect(() => {
     fetchTodo();
   }, [paciente.id]);
+  
+  // Sincronizar si cambia paciente
+  useEffect(() => {
+    setPacienteFull(paciente);
+  }, [paciente.id]);
 
   const fetchTodo = async () => {
-    const [v, m, n, pl, ej] = await Promise.all([
+    const [pacFull, v, m, n, pl, ej] = await Promise.all([
+      supabase.from('pacientes').select('*').eq('id', paciente.id).single(),
       supabase.from('valoraciones').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('consultas_medicas').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('consultas_nutricion').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('planes_ejercicio').select('*, plan_ejercicios(*)').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('ejercicios').select('*').eq('activo', true).order('categoria').order('nombre'),
     ]);
+    if (pacFull.data) setPacienteFull(pacFull.data);
     setValoraciones(v.data || []);
     setConsultasMed(m.data || []);
     setConsultasNut(n.data || []);
@@ -76,13 +83,13 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
       <div style={{ background: B.navy, padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
         <button onClick={onVolver} style={{ background: 'none', border: 'none', color: 'white', fontSize: 22, cursor: 'pointer', padding: 0 }}>←</button>
         <div style={{ width: 44, height: 44, borderRadius: 22, background: B.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
-          {paciente.nombre?.charAt(0)?.toUpperCase()}
+          {pacienteFull.nombre?.charAt(0)?.toUpperCase()}
         </div>
         <div style={{ flex: 1 }}>
-          <p style={{ color: 'white', fontWeight: 800, fontSize: 17, margin: '0 0 3px' }}>{paciente.nombre} {paciente.apellido}</p>
+          <p style={{ color: 'white', fontWeight: 800, fontSize: 17, margin: '0 0 3px' }}>{pacienteFull.nombre} {pacienteFull.apellido || ''}</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {paciente.historia_clinica && <span style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>📋 {paciente.historia_clinica}</span>}
-            {paciente.cedula && <span style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '2px 10px', borderRadius: 20, fontSize: 11 }}>🪪 {paciente.cedula}</span>}
+            {pacienteFull.cedula && <span style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '2px 10px', borderRadius: 20, fontSize: 11 }}>🪪 {pacienteFull.cedula}</span>}
             <span style={{ background: (grupoColors[paciente.grupo] || B.blue) + '44', color: 'white', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{grupoLabels[paciente.grupo]}</span>
             {age > 0 && <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{age} años</span>}
           </div>
@@ -590,7 +597,17 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
 
 // ── TAB NUTRICIÓN ─────────────────────────────────────────────────────────────
 function TabNutricion({ paciente, consultas, onActualizar, usuario }) {
-  return <TabNutricionNuevo paciente={paciente} usuario={usuario} />;
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+  return (
+    <div>
+      <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
+        <p style={{ fontSize: 36, marginBottom: 10 }}>🥗</p>
+        <p style={{ color: B.navy, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Módulo de Nutrición</p>
+        <p style={{ color: B.gray, fontSize: 13 }}>En desarrollo — próximamente disponible cuando se defina el protocolo nutricional de IMC.</p>
+      </div>
+    </div>
+  );
 }
 
 

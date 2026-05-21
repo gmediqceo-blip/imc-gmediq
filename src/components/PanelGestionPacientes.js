@@ -247,7 +247,17 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
             <PatientRow
               key={p.paciente_id}
               paciente={p}
-              onAbrir={() => onAbrirPaciente && onAbrirPaciente({ id: p.paciente_id })}
+              onAbrir={() => onAbrirPaciente && onAbrirPaciente({ 
+                id: p.paciente_id, 
+                nombre: p.nombre, 
+                apellido: p.apellido,
+                cedula: p.cedula,
+                fecha_nacimiento: p.fecha_nacimiento,
+                sexo: p.sexo,
+                email: p.email,
+                telefono: p.telefono,
+                grupo_nutricional: p.grupo_nutricional,
+              })}
               onRenovar={() => setModalRenovar(p)}
               onSuspender={() => setModalSuspender(p)}
               onReactivar={() => handleReactivar(p)}
