@@ -84,7 +84,7 @@ function escape(str) {
 // ────────────────────────────────────────────────────────────────────────
 function baseCSS() {
   return `
-  @page { size: A4; margin: 10mm 12mm; }
+  @page { size: A4; margin: 14mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
@@ -98,86 +98,98 @@ function baseCSS() {
   .header-band {
     background: ${COLORS.navy};
     color: white;
-    padding: 14px 18px;
-    margin: -10mm -12mm 14px;
-    display: flex;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
     align-items: center;
-    gap: 16px;
-    border-bottom: 4px solid ${COLORS.blue};
+    border-bottom: 3px solid ${COLORS.blue};
   }
   .header-logo {
     background: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    flex-shrink: 0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .header-logo img {
-    height: 42px;
+    height: 38px;
     width: auto;
     display: block;
   }
-  .header-info { flex: 1; }
+  .header-info {
+    min-width: 0;
+    overflow: hidden;
+  }
   .header-name {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
+    line-height: 1.2;
   }
   .header-tagline {
-    font-size: 9px;
+    font-size: 8px;
     color: ${COLORS.gold};
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     margin-top: 1px;
+    font-weight: 600;
   }
   .header-contact {
-    font-size: 8.5px;
-    color: rgba(255,255,255,0.8);
-    margin-top: 6px;
-    line-height: 1.5;
+    font-size: 7.5px;
+    color: rgba(255,255,255,0.78);
+    margin-top: 4px;
+    line-height: 1.4;
   }
   .header-doc {
     text-align: right;
-    font-size: 8.5px;
-    line-height: 1.5;
+    font-size: 7.5px;
+    line-height: 1.4;
     padding-left: 12px;
-    border-left: 1px solid rgba(255,255,255,0.25);
+    border-left: 1px solid rgba(255,255,255,0.2);
+    white-space: nowrap;
+    min-width: 100px;
   }
   .header-doc strong {
     display: block;
     color: white;
-    font-size: 10px;
-    margin-bottom: 3px;
-    letter-spacing: 0.5px;
+    font-size: 9.5px;
+    margin-bottom: 2px;
+    letter-spacing: 0.4px;
   }
   .header-doc small {
     display: block;
     color: ${COLORS.gold};
-    font-size: 8px;
+    font-size: 7px;
     margin-top: 1px;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
+    font-weight: 600;
   }
   
   /* ═══ TITULO DEL DOCUMENTO ═══ */
   .doc-title {
     text-align: center;
-    margin: 8px 0 14px;
-    padding: 0 0 10px;
+    margin: 6px 0 12px;
+    padding: 0 0 8px;
     border-bottom: 1px solid ${COLORS.grayMd};
     position: relative;
   }
   .doc-title-overline {
-    font-size: 9px;
+    font-size: 8.5px;
     color: ${COLORS.teal};
-    letter-spacing: 3px;
+    letter-spacing: 2.5px;
     text-transform: uppercase;
     font-weight: 600;
   }
   .doc-title h1 {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 800;
     color: ${COLORS.navy};
-    margin-top: 4px;
-    letter-spacing: 0.5px;
+    margin-top: 3px;
+    letter-spacing: 0.4px;
   }
   .doc-title .accent {
     color: ${COLORS.blue};
@@ -185,28 +197,28 @@ function baseCSS() {
   .doc-title::after {
     content: '';
     display: block;
-    width: 60px;
-    height: 3px;
+    width: 50px;
+    height: 2.5px;
     background: ${COLORS.gold};
-    margin: 8px auto 0;
+    margin: 6px auto 0;
     border-radius: 2px;
   }
   
   /* ═══ DATOS PACIENTE EN GRID ELEGANTE ═══ */
   .patient-card {
     background: ${COLORS.grayLt};
-    border-left: 5px solid ${COLORS.blue};
-    padding: 12px 16px;
-    margin-bottom: 14px;
-    border-radius: 0 6px 6px 0;
+    border-left: 4px solid ${COLORS.blue};
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 0 4px 4px 0;
   }
   .patient-card-title {
-    font-size: 9px;
+    font-size: 8.5px;
     color: ${COLORS.blue};
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .patient-grid {
     display: grid;
@@ -234,41 +246,41 @@ function baseCSS() {
   
   /* ═══ SECCIONES ═══ */
   .section {
-    margin-bottom: 14px;
+    margin-bottom: 10px;
     page-break-inside: avoid;
   }
   .section-header {
-    background: linear-gradient(90deg, ${COLORS.navy}, ${COLORS.navy}E0);
+    background: ${COLORS.navy};
     color: white;
-    padding: 7px 14px;
+    padding: 6px 12px;
     border-radius: 4px 4px 0 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
   .section-number {
     background: ${COLORS.blue};
     color: white;
-    width: 22px; height: 22px;
+    width: 20px; height: 20px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
-    font-size: 11px;
+    font-size: 10px;
     flex-shrink: 0;
   }
   .section-title {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.6px;
     text-transform: uppercase;
   }
   .section-content {
     background: white;
     border: 1px solid ${COLORS.grayMd};
     border-top: none;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-radius: 0 0 4px 4px;
   }
   
@@ -598,6 +610,14 @@ function baseCSS() {
       print-color-adjust: exact;
     }
     .no-print { display: none !important; }
+    .section { page-break-inside: avoid; }
+    .alimentos-cat { page-break-inside: avoid; }
+    .firmas { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+  }
+  /* Ocultar URL y título del navegador en impresión */
+  @page {
+    margin: 14mm;
   }
   .print-btn {
     position: fixed;
