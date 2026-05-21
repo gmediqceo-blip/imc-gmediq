@@ -7,6 +7,7 @@ import BancoArchivos from './BancoArchivos';
 import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
 import Parametros from './Parametros';
 import SugerenciasIA from './SugerenciasIA';
+import TabNutricionNuevo from './TabNutricion';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -344,7 +345,7 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
     terapeuta_nombre: usuario ? `${usuario.nombre} ${usuario.apellido}` : '',
     fc_reposo: '', pa_sistolica: '', pa_diastolica: '', spo2: '', fr: '',
     peso: '', talla: '', pct_grasa: '', masa_muscular: '', masa_grasa: '', agua_corporal: '',
-    cintura: '', cadera: '', grasa_visceral: '', inbody_score_muscular: '', inbody_score_grasa: '',
+    cintura: '', cadera: '', inbody_score_muscular: '', inbody_score_grasa: '',
     dina_d: '', dina_i: '', orm_superior: '', orm_inferior: '',
     sit_stand: '', borg: '', fc_pre: '', fc_post: '', spo2_pre: '', spo2_post: '',
     vo2max: '', vo2max_clasificacion: '',
@@ -420,7 +421,6 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
             <Field label="Masa grasa (kg)" value={form.masa_grasa} onChange={set('masa_grasa')} type="number" half />
             <Field label="Cintura (cm)" value={form.cintura} onChange={set('cintura')} type="number" half hint="Riesgo H>94 · M>80" />
             <Field label="Cadera (cm)" value={form.cadera} onChange={set('cadera')} type="number" half />
-            <Field label="Grasa visceral InBody (1–20)" value={form.grasa_visceral} onChange={set('grasa_visceral')} type="number" half hint="Normal: 1–9 · Riesgo: ≥10" />
           </div>
           <SectionTitle>Dinamometría y Fuerza</SectionTitle>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
@@ -590,17 +590,7 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
 
 // ── TAB NUTRICIÓN ─────────────────────────────────────────────────────────────
 function TabNutricion({ paciente, consultas, onActualizar, usuario }) {
-  const [toast, setToast] = useState(null);
-  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
-  return (
-    <div>
-      <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
-        <p style={{ fontSize: 36, marginBottom: 10 }}>🥗</p>
-        <p style={{ color: B.navy, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Módulo de Nutrición</p>
-        <p style={{ color: B.gray, fontSize: 13 }}>En desarrollo — próximamente disponible cuando se defina el protocolo nutricional de IMC.</p>
-      </div>
-    </div>
-  );
+  return <TabNutricionNuevo paciente={paciente} usuario={usuario} />;
 }
 
 
@@ -624,7 +614,7 @@ function ModalEditarValoracion({ paciente, valoracion, usuario, onClose, onGuard
     ['peso','Peso (kg)','number'],['talla','Talla (cm)','number'],
     ['pct_grasa','% Grasa corporal','number'],['masa_muscular','Masa muscular (kg)','number'],
     ['masa_grasa','Masa grasa (kg)','number'],['agua_corporal','Agua corporal (L)','number'],
-    ['cintura','Cintura (cm)','number'],['cadera','Cadera (cm)','number'],['grasa_visceral','Grasa visceral (1–20)','number'],
+    ['cintura','Cintura (cm)','number'],['cadera','Cadera (cm)','number'],
     ['sit_stand','Sit & Stand (reps)','number'],['borg','Borg','number'],
     ['dina_d','Dinamometría D (kg)','number'],['dina_i','Dinamometría I (kg)','number'],
     ['vo2max','VO2max (ml/kg/min)','number'],
