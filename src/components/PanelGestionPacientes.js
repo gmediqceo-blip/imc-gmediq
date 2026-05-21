@@ -507,13 +507,13 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar }) 
       {/* Acciones */}
       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
         {paciente.programa_estado === 'por_vencer' || paciente.programa_estado === 'modo_lectura' ? (
-          <button onClick={onRenovar} style={btnIcon(B.amber)}>🔄 Renovar</button>
+          <button onClick={onRenovar} style={btnIcon(B.amber)} title="Renovar programa del paciente">🔄 Renovar</button>
         ) : paciente.programa_estado === 'suspendido' ? (
-          <button onClick={onReactivar} style={btnIcon(B.green)}>▶️ Reactivar</button>
+          <button onClick={onReactivar} style={btnIcon(B.green)} title="Reactivar programa suspendido">▶️ Reactivar</button>
         ) : (
           <>
-            <button onClick={onAbrir} style={btnIconSm()}>👁️</button>
-            <button onClick={onSuspender} style={btnIconSm()}>⏸️</button>
+            <button onClick={onAbrir} style={btnIconSm()} title="Ver ficha del paciente">👁️</button>
+            <button onClick={onSuspender} style={btnIconSm()} title="Suspender programa del paciente">⏸️</button>
           </>
         )}
       </div>

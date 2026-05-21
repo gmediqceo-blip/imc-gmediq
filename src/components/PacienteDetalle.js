@@ -7,7 +7,6 @@ import BancoArchivos from './BancoArchivos';
 import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
 import Parametros from './Parametros';
 import SugerenciasIA from './SugerenciasIA';
-import TabNutricionV2 from './TabNutricionV2';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -19,6 +18,8 @@ const grupoColors = { transformacion: B.blue, prequirurgico: B.orange, postquiru
 
 export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   const [tab, setTab] = useState('resumen');
+  const [modalEditarPaciente, setModalEditarPaciente] = useState(false);
+  const [protocolos, setProtocolos] = useState([]);
   const [pacienteFull, setPacienteFull] = useState(paciente);
   const [valoraciones, setValoraciones] = useState([]);
   const [consultasMed, setConsultasMed] = useState([]);
@@ -31,7 +32,17 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
   useEffect(() => {
     fetchTodo();
+    cargarProtocolos();
   }, [paciente.id]);
+
+  const cargarProtocolos = async () => {
+    const { data } = await supabase
+      .from('protocolos_nutricionales')
+      .select('*')
+      .eq('activo', true)
+      .order('orden');
+    setProtocolos(data || []);
+  };
   
   // Sincronizar si cambia paciente
   useEffect(() => {
@@ -95,6 +106,12 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
             {age > 0 && <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{age} años</span>}
           </div>
         </div>
+        <button 
+          onClick={() => setModalEditarPaciente(true)}
+          title="Editar datos del paciente"
+          style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '8px 14px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+          ✏️ Editar
+        </button>
       </div>
 
       {/* Tabs */}
@@ -138,25 +155,63 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
 
             {/* Info del paciente */}
             <div style={{ background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}`, padding: '18px 20px', marginBottom: 16 }}>
-              <p style={{ fontWeight: 700, fontSize: 12, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 14px' }}>Información del paciente</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <p style={{ fontWeight: 700, fontSize: 12, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Información completa del paciente</p>
+                <button onClick={() => setModalEditarPaciente(true)} title="Editar datos del paciente" style={{ background: B.blue, color: 'white', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Editar</button>
+              </div>
+              
+              {/* DATOS PERSONALES */}
+              <p style={{ fontSize: 10, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 8px', borderBottom: `1px solid ${B.grayLt}`, paddingBottom: 4 }}>👤 Datos personales</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px', marginBottom: 18 }}>
+                {[
+                  ['Nombre completo', `${pacienteFull.nombre || ''} ${pacienteFull.apellido || ''}`.trim()],
+                  ['Cédula', pacienteFull.cedula],
+                  ['Fecha nacimiento', fmtDate(pacienteFull.fecha_nacimiento)],
+                  ['Edad', age > 0 ? `${age} años` : '—'],
+                  ['Sexo', pacienteFull.sexo === 'M' ? 'Masculino' : pacienteFull.sexo === 'F' ? 'Femenino' : '—'],
+                  ['Teléfono', pacienteFull.telefono],
+                  ['Email', pacienteFull.email],
+                  ['Ocupación', paciente.ocupacion],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 2px' }}>{k}</p>
+                    <p style={{ fontSize: 13, color: v ? B.navy : B.gray, margin: 0, fontStyle: v ? 'normal' : 'italic' }}>{v || 'Sin registrar'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* DATOS CLÍNICOS */}
+              <p style={{ fontSize: 10, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 8px', borderBottom: `1px solid ${B.grayLt}`, paddingBottom: 4 }}>🩺 Datos clínicos</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px', marginBottom: 18 }}>
                 {[
                   ['Plan IMC', planLabels[paciente.plan]],
-                  ['Diagnóstico', paciente.diagnostico_principal],
+                  ['Grupo', grupoLabels[paciente.grupo]],
+                  ['Protocolo nutricional', protocolos.find(p => p.codigo === pacienteFull.protocolo_nutricional)?.emoji + ' ' + (protocolos.find(p => p.codigo === pacienteFull.protocolo_nutricional)?.nombre || '—')],
+                  ['Fecha procedimiento', fmtDate(pacienteFull.fecha_procedimiento)],
+                  ['Diagnóstico principal', paciente.diagnostico_principal],
                   ['Cirugía', paciente.cirugia],
                   ['Fecha cirugía', fmtDate(paciente.fecha_cirugia)],
                   ['Médico tratante', paciente.medico_tratante],
-                  ['Teléfono', paciente.telefono],
-                  ['Email', paciente.email],
-                  ['Ocupación', paciente.ocupacion],
+                ].map(([k, v]) => (
+                  <div key={k}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 2px' }}>{k}</p>
+                    <p style={{ fontSize: 13, color: v && v !== '—' ? B.navy : B.gray, margin: 0, fontStyle: v && v !== '—' ? 'normal' : 'italic' }}>{v && v !== '—' ? v : 'Sin registrar'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* ANTECEDENTES */}
+              <p style={{ fontSize: 10, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 8px', borderBottom: `1px solid ${B.grayLt}`, paddingBottom: 4 }}>📋 Antecedentes</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
+                {[
                   ['Antecedentes personales', paciente.antecedentes_personales],
                   ['Antecedentes familiares', paciente.antecedentes_familiares],
                   ['Alergias', paciente.alergias],
-                  ['Medicamentos', paciente.medicamentos_actuales],
-                ].filter(([, v]) => v).map(([k, v]) => (
+                  ['Medicamentos actuales', paciente.medicamentos_actuales],
+                ].map(([k, v]) => (
                   <div key={k}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 2px' }}>{k}</p>
-                    <p style={{ fontSize: 13, color: B.navy, margin: 0 }}>{v}</p>
+                    <p style={{ fontSize: 13, color: v ? B.navy : B.gray, margin: 0, fontStyle: v ? 'normal' : 'italic' }}>{v || 'Sin registrar'}</p>
                   </div>
                 ))}
               </div>
@@ -233,6 +288,17 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
           />
         )}
       </div>
+
+      {/* Modal Editar Paciente */}
+      {modalEditarPaciente && (
+        <ModalEditarPaciente
+          paciente={pacienteFull}
+          protocolos={protocolos}
+          usuario={usuario}
+          onClose={() => setModalEditarPaciente(false)}
+          onGuardado={() => { setModalEditarPaciente(false); fetchTodo(); }}
+        />
+      )}
     </div>
   );
 }
@@ -598,7 +664,17 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
 
 // ── TAB NUTRICIÓN ─────────────────────────────────────────────────────────────
 function TabNutricion({ paciente, consultas, onActualizar, usuario }) {
-  return <TabNutricionV2 paciente={paciente} usuario={usuario} />;
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+  return (
+    <div>
+      <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
+        <p style={{ fontSize: 36, marginBottom: 10 }}>🥗</p>
+        <p style={{ color: B.navy, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Módulo de Nutrición</p>
+        <p style={{ color: B.gray, fontSize: 13 }}>En desarrollo — próximamente disponible cuando se defina el protocolo nutricional de IMC.</p>
+      </div>
+    </div>
+  );
 }
 
 
@@ -718,3 +794,191 @@ function ModalEditarValoracion({ paciente, valoracion, usuario, onClose, onGuard
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODAL: Editar Paciente — datos personales, clínicos, programa
+// ═══════════════════════════════════════════════════════════════════════════
+function ModalEditarPaciente({ paciente, protocolos, usuario, onClose, onGuardado }) {
+  const [seccion, setSeccion] = useState('personales');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+  const [form, setForm] = useState({
+    nombre: paciente.nombre || '',
+    apellido: paciente.apellido || '',
+    cedula: paciente.cedula || '',
+    fecha_nacimiento: paciente.fecha_nacimiento || '',
+    sexo: paciente.sexo || '',
+    telefono: paciente.telefono || '',
+    email: paciente.email || '',
+    ocupacion: paciente.ocupacion || '',
+    plan: paciente.plan || '',
+    grupo: paciente.grupo || '',
+    protocolo_nutricional: paciente.protocolo_nutricional || 'conservador',
+    fecha_procedimiento: paciente.fecha_procedimiento || '',
+    diagnostico_principal: paciente.diagnostico_principal || '',
+    cirugia: paciente.cirugia || '',
+    fecha_cirugia: paciente.fecha_cirugia || '',
+    medico_tratante: paciente.medico_tratante || '',
+    antecedentes_personales: paciente.antecedentes_personales || '',
+    antecedentes_familiares: paciente.antecedentes_familiares || '',
+    alergias: paciente.alergias || '',
+    medicamentos_actuales: paciente.medicamentos_actuales || '',
+  });
+
+  const set = (k, v) => setForm({ ...form, [k]: v });
+
+  const guardar = async () => {
+    setGuardando(true);
+    setError(null);
+    try {
+      const payload = { ...form };
+      // Convertir cadenas vacías a null en fechas
+      ['fecha_nacimiento', 'fecha_procedimiento', 'fecha_cirugia'].forEach(f => {
+        if (!payload[f]) payload[f] = null;
+      });
+      const { error: err } = await supabase
+        .from('pacientes')
+        .update(payload)
+        .eq('id', paciente.id);
+      if (err) throw err;
+      onGuardado();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+      <div style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 760, maxHeight: '92vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ background: B.navy, padding: '14px 20px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>✏️ Editar paciente</p>
+            <p style={{ fontSize: 11, opacity: 0.85, margin: '2px 0 0' }}>{paciente.nombre} {paciente.apellido || ''}</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', fontSize: 18, fontWeight: 700, cursor: 'pointer', borderRadius: 5, padding: '4px 9px' }}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ background: B.grayLt, padding: '10px 16px', display: 'flex', gap: 4, borderBottom: `1px solid ${B.grayMd}`, overflowX: 'auto' }}>
+          {[
+            { k: 'personales', l: '👤 Datos personales' },
+            { k: 'clinicos',   l: '🩺 Datos clínicos' },
+            { k: 'antecedentes', l: '📋 Antecedentes' },
+          ].map(t => (
+            <button key={t.k} onClick={() => setSeccion(t.k)} style={{ padding: '7px 12px', fontSize: 11, fontWeight: 700, borderRadius: 6, whiteSpace: 'nowrap', cursor: 'pointer', background: seccion === t.k ? B.blue : 'transparent', color: seccion === t.k ? 'white' : B.gray, border: 'none', fontFamily: 'inherit' }}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
+          {error && (
+            <div style={{ background: '#FFEBEB', color: B.red, padding: '8px 12px', borderRadius: 6, marginBottom: 14, fontSize: 12 }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          {seccion === 'personales' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+              <EditField label="Nombre" valor={form.nombre} onChange={v => set('nombre', v)} />
+              <EditField label="Apellido" valor={form.apellido} onChange={v => set('apellido', v)} />
+              <EditField label="Cédula" valor={form.cedula} onChange={v => set('cedula', v)} />
+              <EditField label="Fecha de nacimiento" tipo="date" valor={form.fecha_nacimiento} onChange={v => set('fecha_nacimiento', v)} />
+              <EditSelect label="Sexo" valor={form.sexo} onChange={v => set('sexo', v)} opciones={[
+                { val: '', txt: '— Seleccionar —' },
+                { val: 'M', txt: 'Masculino' },
+                { val: 'F', txt: 'Femenino' },
+              ]} />
+              <EditField label="Teléfono" valor={form.telefono} onChange={v => set('telefono', v)} />
+              <EditField label="Email" tipo="email" valor={form.email} onChange={v => set('email', v)} />
+              <EditField label="Ocupación" valor={form.ocupacion} onChange={v => set('ocupacion', v)} />
+            </div>
+          )}
+
+          {seccion === 'clinicos' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+              <EditSelect label="Plan IMC" valor={form.plan} onChange={v => set('plan', v)} opciones={[
+                { val: '', txt: '— Seleccionar —' },
+                { val: 'starter', txt: 'Starter $80' },
+                { val: 'standard', txt: 'Standard $250/mes' },
+                { val: 'imc360', txt: 'IMC 360 $400/mes' },
+              ]} />
+              <EditSelect label="Grupo" valor={form.grupo} onChange={v => set('grupo', v)} opciones={[
+                { val: '', txt: '— Seleccionar —' },
+                { val: 'transformacion', txt: 'Transformación' },
+                { val: 'prequirurgico', txt: 'Pre-quirúrgico' },
+                { val: 'postquirurgico', txt: 'Post-quirúrgico' },
+              ]} />
+              <div style={{ gridColumn: 'span 2' }}>
+                <EditSelect 
+                  label="🥗 Protocolo nutricional" 
+                  valor={form.protocolo_nutricional} 
+                  onChange={v => set('protocolo_nutricional', v)} 
+                  opciones={protocolos.map(p => ({ val: p.codigo, txt: `${p.emoji} ${p.nombre}` }))} 
+                />
+              </div>
+              <EditField label="Fecha del procedimiento (manga/balón/etc.)" tipo="date" valor={form.fecha_procedimiento} onChange={v => set('fecha_procedimiento', v)} />
+              <EditField label="Fecha cirugía (legado)" tipo="date" valor={form.fecha_cirugia} onChange={v => set('fecha_cirugia', v)} />
+              <div style={{ gridColumn: 'span 2' }}>
+                <EditField label="Diagnóstico principal" valor={form.diagnostico_principal} onChange={v => set('diagnostico_principal', v)} />
+              </div>
+              <EditField label="Cirugía" valor={form.cirugia} onChange={v => set('cirugia', v)} />
+              <EditField label="Médico tratante" valor={form.medico_tratante} onChange={v => set('medico_tratante', v)} />
+            </div>
+          )}
+
+          {seccion === 'antecedentes' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <EditArea label="Antecedentes personales" valor={form.antecedentes_personales} onChange={v => set('antecedentes_personales', v)} />
+              <EditArea label="Antecedentes familiares" valor={form.antecedentes_familiares} onChange={v => set('antecedentes_familiares', v)} />
+              <EditArea label="Alergias" valor={form.alergias} onChange={v => set('alergias', v)} />
+              <EditArea label="Medicamentos actuales" valor={form.medicamentos_actuales} onChange={v => set('medicamentos_actuales', v)} />
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 20px', background: B.grayLt, borderTop: `1px solid ${B.grayMd}`, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button onClick={onClose} style={{ padding: '9px 16px', background: 'white', color: B.navy, border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+          <button onClick={guardar} disabled={guardando} style={{ padding: '9px 18px', background: B.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: guardando ? 'not-allowed' : 'pointer', opacity: guardando ? 0.5 : 1, fontFamily: 'inherit' }}>
+            {guardando ? 'Guardando...' : '💾 Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditField({ label, valor, onChange, tipo = 'text' }) {
+  return (
+    <div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 5px' }}>{label}</p>
+      <input type={tipo} value={valor || ''} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '9px 11px', border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+    </div>
+  );
+}
+
+function EditSelect({ label, valor, onChange, opciones }) {
+  return (
+    <div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 5px' }}>{label}</p>
+      <select value={valor || ''} onChange={e => onChange(e.target.value)} style={{ width: '100%', padding: '9px 11px', border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', background: 'white' }}>
+        {opciones.map(o => <option key={o.val} value={o.val}>{o.txt}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function EditArea({ label, valor, onChange }) {
+  return (
+    <div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 0.5, margin: '0 0 5px' }}>{label}</p>
+      <textarea value={valor || ''} onChange={e => onChange(e.target.value)} rows={3} style={{ width: '100%', padding: '9px 11px', border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', minHeight: 60 }} />
+    </div>
+  );
+}
+
