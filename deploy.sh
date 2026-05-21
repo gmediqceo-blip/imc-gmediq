@@ -1,5 +1,5 @@
 #!/bin/bash
-cd ~/Downloads/imc-app
+cd ~/Desktop/imc-app
 git add .
 git commit -m "${1:-update}"
 git push
