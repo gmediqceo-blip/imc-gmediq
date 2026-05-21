@@ -90,7 +90,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
     // Búsqueda
     if (busqueda) {
       const q = busqueda.toLowerCase();
-      const texto = `${p.nombre || ''} ${p.email || ''} ${p.telefono || ''}`.toLowerCase();
+      const texto = `${p.nombre || ''} ${p.apellido || ''} ${p.email || ''} ${p.telefono || ''}`.toLowerCase();
       if (!texto.includes(q)) return false;
     }
     
@@ -627,7 +627,7 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
                   <option value="">— Selecciona un programa —</option>
                   {programas.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.nombre}
+                      {p.nombre} {p.apellido || ''}
                     </option>
                   ))}
                 </select>
