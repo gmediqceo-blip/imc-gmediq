@@ -131,10 +131,10 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
 
   // ────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 24, maxWidth: 1400, margin: '0 auto' }}>
       
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: B.navy, margin: '0 0 4px' }}>
             Gestión de Pacientes
@@ -157,7 +157,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
       </div>
 
       {/* STATS CLICKEABLES COMO FILTROS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 20 }}>
         <StatTile
           activa={filtroEstado === 'todos'}
           color={B.blue}
@@ -196,7 +196,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
       </div>
 
       {/* BARRA DE FILTROS */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
@@ -337,7 +337,77 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar }) 
   const meta = ESTADOS_META[paciente.programa_estado] || ESTADOS_META.pendiente_activacion;
   const inicial = paciente.nombre?.charAt(0)?.toUpperCase() || '?';
   const diasRestantes = paciente.dias_restantes;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   
+  // ── Versión móvil: tarjeta vertical ────────────────────────────────
+  if (isMobile) {
+    return (
+      <div
+        onClick={onAbrir}
+        style={{
+          padding: '14px 14px',
+          borderBottom: `1px solid ${B.grayLt}`,
+          cursor: 'pointer',
+          background: 'white',
+        }}
+      >
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          {/* Avatar */}
+          <div style={{
+            width: 44, height: 44, borderRadius: 22,
+            background: `linear-gradient(135deg, ${B.blue}, ${B.navy})`,
+            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 15, flexShrink: 0,
+          }}>
+            {inicial}
+          </div>
+          
+          {/* Info principal */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Nombre completo */}
+            <div style={{ fontSize: 14, fontWeight: 800, color: B.navy, lineHeight: 1.3 }}>
+              {paciente.nombre} {paciente.apellido || ''}
+            </div>
+            
+            {/* Programa */}
+            <div style={{ fontSize: 11, color: B.gray, marginTop: 2 }}>
+              {paciente.programa_nombre || 'Sin programa asignado'}
+            </div>
+            
+            {/* Pills */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{
+                background: meta.bg, color: meta.color,
+                padding: '3px 9px', borderRadius: 10, fontSize: 9,
+                fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3,
+              }}>
+                {meta.icon} {meta.label}
+              </span>
+              {paciente.fecha_vencimiento && (
+                <span style={{
+                  fontSize: 10, color: diasRestantes < 0 ? B.red : diasRestantes < 14 ? B.orange : B.gray,
+                  fontWeight: 600,
+                }}>
+                  {diasRestantes < 0 ? `Vencido hace ${Math.abs(diasRestantes)}d` 
+                    : diasRestantes === 0 ? 'Vence hoy'
+                    : `${diasRestantes}d para vencer`}
+                </span>
+              )}
+            </div>
+            
+            {/* Módulos pequeños */}
+            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+              <ModuleDot active={paciente.incluye_nutricion}    color={B.green}  emoji="🥗" />
+              <ModuleDot active={paciente.incluye_fisioterapia} color={B.orange} emoji="🏃" />
+              <ModuleDot active={paciente.incluye_aparatologia} color={B.purple} emoji="⚡" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // ── Versión desktop: fila horizontal (original) ───────────────────
   return (
     <div
       style={{
@@ -876,7 +946,8 @@ const btnClose = () => ({
 });
 
 const tableHeader = () => ({
-  display: 'grid', gridTemplateColumns: '50px 2fr 1.5fr 1.3fr 1fr 1fr 160px', gap: 12,
+  display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'grid', 
+  gridTemplateColumns: '50px 2fr 1.5fr 1.3fr 1fr 1fr 160px', gap: 12,
   padding: '12px 16px', background: B.grayLt, borderBottom: `2px solid ${B.grayMd}`,
   fontSize: 10, color: B.gray, textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.5,
 });
