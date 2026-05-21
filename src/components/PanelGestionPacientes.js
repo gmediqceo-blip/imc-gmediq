@@ -131,7 +131,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
 
   // ────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: typeof window !== 'undefined' && window.innerWidth < 768 ? 14 : 24, maxWidth: 1400, margin: '0 auto' }}>
+    <div style={{ padding: typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 24, maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
@@ -230,7 +230,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
           </p>
         </div>
       ) : (
-        <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden' }}>
+        <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden', width: '100%' }}>
           {/* Header de tabla */}
           <div style={tableHeader()}>
             <div></div>
