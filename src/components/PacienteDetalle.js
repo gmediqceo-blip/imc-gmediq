@@ -8,6 +8,7 @@ import ConsultaMedica, { HistorialUnificado } from './ConsultaMedica';
 import Parametros from './Parametros';
 import SugerenciasIA from './SugerenciasIA';
 import TabNutricionV2 from './TabNutricionV2';
+import EvolucionAntropometrica from './EvolucionAntropometrica';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -85,6 +86,7 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
     { key: 'fisioterapia', label: '🏃 Fisioterapia', roles: ['admin','secretaria','fisioterapeuta','medico'] },
     { key: 'medico', label: '🩺 Médico', roles: ['admin','secretaria','medico'] },
     { key: 'nutricion', label: '🥗 Nutrición', roles: ['admin','secretaria','nutricionista','medico'] },
+    { key: 'evolucion', label: '📈 Evolución', roles: null },
     { key: 'ejercicio', label: '🏋️ Plan ejercicio', roles: ['admin','secretaria','fisioterapeuta','medico'] },
     { key: 'archivos', label: '📁 Archivos', roles: null },
   ];
@@ -153,6 +155,9 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
                 </div>
               </>
             )}
+
+            {/* Mini evolución antropométrica */}
+            <EvolucionAntropometrica paciente={pacienteFull} compacto={true} />
 
             {/* Info del paciente */}
             <div style={{ background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}`, padding: '18px 20px', marginBottom: 16 }}>
@@ -268,6 +273,11 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
         {/* NUTRICIÓN */}
         {tab === 'nutricion' && (
           <TabNutricion paciente={pacienteFull} consultas={consultasNut} onActualizar={fetchTodo} usuario={usuario} />
+        )}
+
+        {/* EVOLUCIÓN ANTROPOMÉTRICA */}
+        {tab === 'evolucion' && (
+          <EvolucionAntropometrica paciente={pacienteFull} />
         )}
 
         {/* EJERCICIO */}
@@ -665,7 +675,17 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
 
 // ── TAB NUTRICIÓN ─────────────────────────────────────────────────────────────
 function TabNutricion({ paciente, consultas, onActualizar, usuario }) {
-  return <TabNutricionV2 paciente={paciente} usuario={usuario} />;
+  const [toast, setToast] = useState(null);
+  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+  return (
+    <div>
+      <div style={{ textAlign: 'center', padding: 60, background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
+        <p style={{ fontSize: 36, marginBottom: 10 }}>🥗</p>
+        <p style={{ color: B.navy, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>Módulo de Nutrición</p>
+        <p style={{ color: B.gray, fontSize: 13 }}>En desarrollo — próximamente disponible cuando se defina el protocolo nutricional de IMC.</p>
+      </div>
+    </div>
+  );
 }
 
 
