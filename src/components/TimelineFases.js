@@ -15,6 +15,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { generarPDFGuiaFase } from './PDFNutricion';
 
 const B = {
   navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
@@ -348,6 +349,7 @@ export default function TimelineFases({ paciente, protocolo, usuario, onVolver }
         <ModalDetalleFase
           registro={modalDetalle}
           color={C.primary}
+          paciente={paciente}
           onClose={() => setModalDetalle(null)}
         />
       )}
@@ -484,7 +486,7 @@ function ModalAsignarFase({ fase, color, onCancel, onConfirmar }) {
 // ────────────────────────────────────────────────────────────────────────
 // MODAL: Detalle de fase (muestra contenido completo de la guía)
 // ────────────────────────────────────────────────────────────────────────
-function ModalDetalleFase({ registro, color, onClose }) {
+function ModalDetalleFase({ registro, color, paciente, onClose }) {
   const fase = registro.fases_nutricionales;
   if (!fase) return null;
 
@@ -536,7 +538,13 @@ function ModalDetalleFase({ registro, color, onClose }) {
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${B.grayMd}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 24, paddingTop: 16, borderTop: `1px solid ${B.grayMd}` }}>
+            <button 
+              onClick={() => generarPDFGuiaFase({ fase, paciente, registroFase: registro, usuario: null })} 
+              style={{ ...btnPrimary(B.orange), display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              📄 Generar PDF de esta fase
+            </button>
             <button onClick={onClose} style={btnSecondaryDark()}>Cerrar</button>
           </div>
         </div>

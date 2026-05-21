@@ -18,6 +18,7 @@ import TimelineFases from './TimelineFases';
 import EditorPlanSMAE from './EditorPlanSMAE';
 import AnamnesisNutricional from './AnamnesisNutricional';
 import ConsultaNutricionalV2 from './ConsultaNutricionalV2';
+import { generarPDFPlanSMAE } from './PDFNutricion';
 
 const B = {
   navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
@@ -98,6 +99,28 @@ export default function TabNutricionV2({ paciente, usuario }) {
     setConsultasCount((cons || []).length);
 
     setLoading(false);
+  };
+
+  // ── Generar PDF del Plan SMAE ────────────────────────────────────────
+  const generarPDFPlan = async () => {
+    if (!planSmae) return;
+    try {
+      const [porcionesRes, ejemplosRes, intercambiosRes] = await Promise.all([
+        supabase.from('plan_smae_porciones').select('*').eq('plan_id', planSmae.id).order('orden'),
+        supabase.from('plan_smae_ejemplos').select('*').eq('plan_id', planSmae.id).order('tiempo_codigo').order('numero_opcion'),
+        supabase.from('smae_intercambios').select('*').eq('activo', true).order('categoria_codigo').order('orden'),
+      ]);
+      generarPDFPlanSMAE({
+        plan: planSmae,
+        paciente,
+        porciones: porcionesRes.data || [],
+        ejemplos: ejemplosRes.data || [],
+        intercambios: intercambiosRes.data || [],
+        usuario,
+      });
+    } catch (e) {
+      showToast('Error generando PDF: ' + e.message, B.red);
+    }
   };
 
   // ── Subvistas ────────────────────────────────────────────────────────
@@ -319,8 +342,8 @@ export default function TabNutricionV2({ paciente, usuario }) {
           <button style={btnSecondaryActivo(B.purple)} onClick={() => setVista('historial_consultas')}>
             📚 Historial ({consultasCount})
           </button>
-          <button style={btnSecondary()} disabled title="Próximamente">
-            📄 Generar PDF
+          <button style={btnSecondaryActivo(B.orange)} onClick={generarPDFPlan} disabled={!planSmae} title={planSmae ? 'Generar PDF del Plan SMAE' : 'Crea un plan SMAE primero'}>
+            📄 PDF Plan SMAE
           </button>
         </div>
       </div>
