@@ -83,11 +83,11 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
     { key: 'resumen', label: '📋 Resumen', roles: null }, // todos
     { key: 'historial', label: '📅 Historial', roles: null },
     { key: 'parametros', label: '📈 Parámetros', roles: null },
-    { key: 'fisioterapia', label: '🏃 Fisioterapia', roles: ['admin','secretaria','fisioterapeuta','medico'] },
+    { key: 'fisioterapia', label: '🏃 Fisioterapia', roles: ['admin','secretaria','fisioterapeuta'] },
     { key: 'medico', label: '🩺 Médico', roles: ['admin','secretaria','medico'] },
-    { key: 'nutricion', label: '🥗 Nutrición', roles: ['admin','secretaria','nutricionista','medico'] },
+    { key: 'nutricion', label: '🥗 Nutrición', roles: ['admin','secretaria','nutricionista'] },
     { key: 'evolucion', label: '📈 Evolución', roles: null },
-    { key: 'ejercicio', label: '🏋️ Plan ejercicio', roles: ['admin','secretaria','fisioterapeuta','medico'] },
+    { key: 'ejercicio', label: '🏋️ Plan ejercicio', roles: ['admin','secretaria','fisioterapeuta'] },
     { key: 'archivos', label: '📁 Archivos', roles: null },
   ];
   const tabs = allTabs.filter(t => !t.roles || t.roles.includes(rol));
