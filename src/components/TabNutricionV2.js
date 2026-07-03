@@ -19,6 +19,7 @@ import EditorPlanSMAE from './EditorPlanSMAE';
 import AnamnesisNutricional from './AnamnesisNutricional';
 import ConsultaNutricionalV2 from './ConsultaNutricionalV2';
 import { generarPDFPlanSMAE } from './PDFNutricion';
+import PlanIntercambios from './PlanIntercambios';
 
 const B = {
   navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
@@ -184,6 +185,19 @@ export default function TabNutricionV2({ paciente, usuario }) {
     );
   }
 
+  if (vista === 'intercambios') {
+    return (
+      <div style={{ padding: 20 }}>
+        <button
+          onClick={() => { setVista('resumen'); cargarDatos(); }}
+          style={{ padding: '8px 16px', background: 'transparent', color: B.teal, border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 16 }}>
+          ← Volver a nutrición
+        </button>
+        <PlanIntercambios paciente={paciente} usuario={usuario} />
+      </div>
+    );
+  }
+
   // ── VISTA PRINCIPAL: Resumen ─────────────────────────────────────────
   const protocoloInfo = PROTOCOLOS[protocolo] || PROTOCOLOS.conservador;
 
@@ -344,6 +358,9 @@ export default function TabNutricionV2({ paciente, usuario }) {
           </button>
           <button style={btnSecondaryActivo(B.orange)} onClick={generarPDFPlan} disabled={!planSmae} title={planSmae ? 'Generar PDF del Plan SMAE' : 'Crea un plan SMAE primero'}>
             📄 PDF Plan SMAE
+          </button>
+          <button style={btnSecondaryActivo(B.teal)} onClick={() => setVista('intercambios')}>
+            🔄 Plan por Intercambios
           </button>
         </div>
       </div>
