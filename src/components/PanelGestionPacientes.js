@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import AccesoPacienteModal from './AccesoPacienteModal';
 
 // ── PALETA IMC (consistente con tu sistema) ────────────────────────────
 const B = {
@@ -46,6 +47,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
   const [modalNuevo, setModalNuevo] = useState(false);
   const [modalRenovar, setModalRenovar] = useState(null);
   const [modalSuspender, setModalSuspender] = useState(null);
+  const [modalAcceso, setModalAcceso] = useState(null);
   const [toast, setToast] = useState(null);
 
   useEffect(() => { cargarDatos(); }, []);
@@ -261,6 +263,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
               onRenovar={() => setModalRenovar(p)}
               onSuspender={() => setModalSuspender(p)}
               onReactivar={() => handleReactivar(p)}
+              onAcceso={() => setModalAcceso(p)}
             />
           ))}
         </div>
@@ -288,6 +291,14 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
           paciente={modalSuspender}
           onClose={() => setModalSuspender(null)}
           onSuspendido={(razon) => handleSuspender(modalSuspender, razon)}
+        />
+      )}
+
+      {modalAcceso && (
+        <AccesoPacienteModal
+          paciente={modalAcceso}
+          onClose={() => setModalAcceso(null)}
+          onActualizado={cargarDatos}
         />
       )}
 
@@ -333,7 +344,7 @@ function StatTile({ activa, color, num, label, onClick }) {
 // ════════════════════════════════════════════════════════════════════════
 // SUBCOMPONENTE: Fila de paciente en la tabla
 // ════════════════════════════════════════════════════════════════════════
-function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar }) {
+function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, onAcceso }) {
   const meta = ESTADOS_META[paciente.programa_estado] || ESTADOS_META.pendiente_activacion;
   const inicial = paciente.nombre?.charAt(0)?.toUpperCase() || '?';
   const diasRestantes = paciente.dias_restantes;
@@ -506,6 +517,7 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar }) 
       
       {/* Acciones */}
       <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+        <button onClick={onAcceso} style={btnIconSm()} title="Acceso a la app del paciente">🔑</button>
         {paciente.programa_estado === 'por_vencer' || paciente.programa_estado === 'modo_lectura' ? (
           <button onClick={onRenovar} style={btnIcon(B.amber)} title="Renovar programa del paciente">🔄 Renovar</button>
         ) : paciente.programa_estado === 'suspendido' ? (
