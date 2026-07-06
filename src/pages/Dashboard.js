@@ -4,6 +4,7 @@ import Pacientes from '../components/PanelGestionPacientes';
 import PacienteDetalle from '../components/PacienteDetalle';
 import Usuarios from './Usuarios';
 import Agenda from './Agenda';
+import DashboardPaciente from '../components/DashboardPaciente';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -20,6 +21,8 @@ function useIsMobile() {
 
 export default function Dashboard({ session }) {
   const [usuario, setUsuario] = useState(null);
+  const [paciente, setPaciente] = useState(null);
+  const [cuenta, setCuenta] = useState('cargando'); // cargando | staff | paciente | desconocida
   const [screen, setScreen] = useState('pacientes');
   const [pacienteActivo, setPacienteActivo] = useState(null);
   const [modalPerfil, setModalPerfil] = useState(false);
@@ -28,8 +31,14 @@ export default function Dashboard({ session }) {
 
   useEffect(() => {
     const fetchUsuario = async () => {
-      const { data } = await supabase.from('usuarios').select('*').eq('id', session.user.id).single();
-      setUsuario(data);
+      // 1) ¿Es personal de la clínica?
+      const { data } = await supabase.from('usuarios').select('*').eq('id', session.user.id).maybeSingle();
+      if (data) { setUsuario(data); setCuenta('staff'); return; }
+      // 2) ¿Es un paciente con acceso?
+      const { data: pac } = await supabase.from('pacientes').select('*').eq('user_id', session.user.id).maybeSingle();
+      if (pac) { setPaciente(pac); setCuenta('paciente'); return; }
+      // 3) Cuenta sin configurar
+      setCuenta('desconocida');
     };
     fetchUsuario();
   }, [session]);
@@ -52,6 +61,27 @@ export default function Dashboard({ session }) {
     setScreen(key);
     setMenuMovilAbierto(false);
   };
+
+  // ── BIFURCACIÓN: vista del paciente o cuenta sin configurar ──────────
+  if (cuenta === 'paciente' && paciente) {
+    return <DashboardPaciente paciente={paciente} onLogout={handleLogout} />;
+  }
+  if (cuenta === 'desconocida') {
+    return (
+      <div style={{ minHeight: '100vh', background: B.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', Arial, sans-serif", padding: 20 }}>
+        <div style={{ background: 'white', borderRadius: 16, padding: '32px 28px', maxWidth: 420, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔧</div>
+          <h2 style={{ color: B.navy, fontSize: 18, margin: '0 0 8px' }}>Tu cuenta aún no está configurada</h2>
+          <p style={{ color: B.gray, fontSize: 13, lineHeight: 1.6, margin: '0 0 20px' }}>
+            Tu acceso existe pero no está vinculado a un perfil. Por favor comunícate con el equipo de IMC para completar la activación.
+          </p>
+          <button onClick={handleLogout} style={{ background: B.navy, color: 'white', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const rolColor = { admin: B.navy, fisioterapeuta: B.blue, medico: B.teal, nutricionista: B.green };
   const rolLabel = { admin: 'Administrador', fisioterapeuta: 'Fisioterapeuta', medico: 'Médico', nutricionista: 'Nutricionista' };
