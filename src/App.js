@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import CambiarPassword from './components/CambiarPassword';
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [recuperando, setRecuperando] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,7 +14,8 @@ export default function App() {
       setSession(session);
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecuperando(true);
       setSession(session);
     });
     return () => subscription.unsubscribe();
@@ -27,6 +30,17 @@ export default function App() {
       </div>
     </div>
   );
+
+  if (session && recuperando) {
+    return (
+      <CambiarPassword
+        titulo="Restablece tu contraseña"
+        subtitulo="Crea una contraseña nueva para tu cuenta y vuelve a entrar con ella."
+        textoBoton="Guardar y continuar"
+        onCompletado={() => setRecuperando(false)}
+      />
+    );
+  }
 
   return session ? <Dashboard session={session} /> : <Login />;
 }

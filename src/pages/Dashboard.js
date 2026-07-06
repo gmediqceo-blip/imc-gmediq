@@ -5,6 +5,7 @@ import PacienteDetalle from '../components/PacienteDetalle';
 import Usuarios from './Usuarios';
 import Agenda from './Agenda';
 import DashboardPaciente from '../components/DashboardPaciente';
+import CambiarPassword from '../components/CambiarPassword';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -64,6 +65,20 @@ export default function Dashboard({ session }) {
 
   // ── BIFURCACIÓN: vista del paciente o cuenta sin configurar ──────────
   if (cuenta === 'paciente' && paciente) {
+    // Primer ingreso: obligar a crear contraseña personal (doubles como pantalla de bienvenida)
+    if (!paciente.app_activado) {
+      return (
+        <CambiarPassword
+          titulo={`¡Bienvenido/a, ${paciente.nombre}! 🎉`}
+          subtitulo="Tu cuenta está activa. Para tu seguridad, crea tu contraseña personal antes de continuar — la temporal que recibiste dejará de funcionar."
+          textoBoton="Crear mi contraseña y entrar"
+          onCompletado={async () => {
+            await supabase.rpc('activar_mi_cuenta');
+            setPaciente({ ...paciente, app_activado: true });
+          }}
+        />
+      );
+    }
     return <DashboardPaciente paciente={paciente} onLogout={handleLogout} />;
   }
   if (cuenta === 'desconocida') {

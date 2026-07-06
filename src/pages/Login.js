@@ -8,6 +8,8 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [modoReset, setModoReset] = useState(false);
+  const [resetEnviado, setResetEnviado] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -15,6 +17,19 @@ export default function Login() {
     setError('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setError('Email o contraseña incorrectos');
+    setLoading(false);
+  };
+
+  const enviarReset = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setResetEnviado(false);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: window.location.origin,
+    });
+    if (error) setError('No se pudo enviar el enlace. Verifica el correo e intenta de nuevo.');
+    else setResetEnviado(true);
     setLoading(false);
   };
 
@@ -27,6 +42,7 @@ export default function Login() {
           <p style={{ fontSize: 11, color: '#9AA5B1', margin: '4px 0 0' }}>Sistema de gestión clínica</p>
         </div>
 
+        {!modoReset ? (
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Email</label>
@@ -44,9 +60,36 @@ export default function Login() {
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
+        ) : (
+        <form onSubmit={enviarReset}>
+          <p style={{ fontSize: 13, color: B.teal, lineHeight: 1.6, marginBottom: 18 }}>
+            Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva.
+          </p>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="tu@email.com"
+              style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #DDE3EA', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}/>
+          </div>
+          {resetEnviado && (
+            <div style={{ background: '#E6F5EE', border: '1px solid #1A7A4A', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#1A7A4A' }}>
+              ✓ Enlace enviado. Revisa tu correo (y la carpeta de spam) y sigue las instrucciones.
+            </div>
+          )}
+          {error && <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: B.red }}>{error}</div>}
+          <button type="submit" disabled={loading}
+            style={{ width: '100%', padding: '13px', background: loading ? '#9AA5B1' : B.navy, color: B.white, border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+            {loading ? 'Enviando...' : '📧 Enviar enlace de recuperación'}
+          </button>
+        </form>
+        )}
 
-        <p style={{ textAlign: 'center', fontSize: 11, color: '#9AA5B1', marginTop: 24 }}>
-          Acceso exclusivo para personal IMC
+        <button onClick={() => { setModoReset(!modoReset); setError(''); setResetEnviado(false); }}
+          style={{ display: 'block', margin: '18px auto 0', background: 'none', border: 'none', color: B.blue, fontSize: 12.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+          {modoReset ? '← Volver a ingresar' : '¿Olvidaste tu contraseña?'}
+        </button>
+
+        <p style={{ textAlign: 'center', fontSize: 11, color: '#9AA5B1', marginTop: 18 }}>
+          Instituto Metabólico Corporal · IMC360
         </p>
       </div>
     </div>
