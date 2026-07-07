@@ -13,7 +13,6 @@ const ROLES = [
   { value: 'fisioterapeuta', label: 'Fisioterapeuta', color: B.blue, icon: '🏃' },
   { value: 'nutricionista', label: 'Nutricionista', color: B.green, icon: '🥗' },
   { value: 'secretaria', label: 'Secretaria / Admin', color: B.orange, icon: '📋' },
-  { value: 'cosmetologa', label: 'Cosmetóloga', color: '#C9A86A', icon: '💆' },
 ];
 
 const TIPOS = [

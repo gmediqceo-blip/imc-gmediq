@@ -98,8 +98,8 @@ export default function Dashboard({ session }) {
     );
   }
 
-  const rolColor = { admin: B.navy, fisioterapeuta: B.blue, medico: B.teal, nutricionista: B.green, secretaria: B.orange, cosmetologa: '#C9A86A' };
-  const rolLabel = { admin: 'Administrador', fisioterapeuta: 'Fisioterapeuta', medico: 'Médico', nutricionista: 'Nutricionista', secretaria: 'Secretaria', cosmetologa: 'Cosmetóloga' };
+  const rolColor = { admin: B.navy, fisioterapeuta: B.blue, medico: B.teal, nutricionista: B.green };
+  const rolLabel = { admin: 'Administrador', fisioterapeuta: 'Fisioterapeuta', medico: 'Médico', nutricionista: 'Nutricionista' };
 
   const navItems = [
     { key: 'pacientes', label: '👥 Pacientes' },
@@ -269,8 +269,8 @@ function ModalMiPerfil({ usuario, onClose, onGuardado }) {
   const [registroMsp, setRegistroMsp] = useState(usuario.registro_msp || '');
   const [guardando, setGuardando] = useState(false);
 
-  const rolLabels = { admin: 'Administrador', fisioterapeuta: 'Fisioterapeuta', medico: 'Médico', nutricionista: 'Nutricionista', secretaria: 'Secretaria', cosmetologa: 'Cosmetóloga' };
-  const rolColor2 = { admin: B.navy, fisioterapeuta: B.blue, medico: B.teal, nutricionista: B.green, secretaria: B.orange, cosmetologa: '#C9A86A' };
+  const rolLabels = { admin: 'Administrador', fisioterapeuta: 'Fisioterapeuta', medico: 'Médico', nutricionista: 'Nutricionista', secretaria: 'Secretaria' };
+  const rolColor2 = { admin: B.navy, fisioterapeuta: B.blue, medico: B.teal, nutricionista: B.green, secretaria: B.orange };
   const col = rolColor2[usuario.rol] || B.teal;
 
   const guardar = async () => {

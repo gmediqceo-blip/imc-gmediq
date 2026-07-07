@@ -12,7 +12,6 @@ const SERVICIOS = [
   { value: 'valoracion_fisio', label: 'Valoración Fisioterapéutica', color: B.blue, icon: '🏃' },
   { value: 'nutricion', label: 'Consulta Nutrición', color: B.green, icon: '🥗' },
   { value: 'aparatologia', label: 'Aparatología EmZero', color: B.purple, icon: '⚡' },
-  { value: 'masaje_tonificante', label: 'Masaje Tonificante', color: '#C9A86A', icon: '💆' },
 ];
 
 const ESTADOS = [
@@ -44,7 +43,7 @@ export default function Agenda({ usuario, onAbrirPaciente }) {
   const [toast, setToast] = useState(null);
   const [filtroProf, setFiltroProf] = useState('todos');
 
-  const isAdmin = usuario?.rol === 'admin' || usuario?.rol === 'secretaria' || usuario?.rol === 'cosmetologa';
+  const isAdmin = usuario?.rol === 'admin' || usuario?.rol === 'secretaria';
   const puedeCrearCitas = isAdmin || usuario?.rol === 'fisioterapeuta' || usuario?.rol === 'medico' || usuario?.rol === 'nutricionista';
   const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 3000); };
 
