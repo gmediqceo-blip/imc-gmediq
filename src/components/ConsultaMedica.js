@@ -497,7 +497,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   const [buscandoCie, setBuscandoCie] = useState(false);
   // Medicamentos
   const [medicamentos, setMedicamentos] = useState([]);
-  const [nuevoMed, setNuevoMed] = useState({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
+  const [nuevoMed, setNuevoMed] = useState({ nombre: '', dosis: '', frecuencia: '', duracion: '', cantidad: '', indicaciones: '' });
   // Exámenes
   const [examLab, setExamLab] = useState([]);
   const [examImg, setExamImg] = useState([]);
@@ -549,7 +549,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   const addMedicamento = () => {
     if (!nuevoMed.nombre.trim()) return;
     setMedicamentos(p => [...p, { ...nuevoMed, id: Date.now() }]);
-    setNuevoMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
+    setNuevoMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', cantidad: '', indicaciones: '' });
   };
 
   const removeMedicamento = (id) => setMedicamentos(p => p.filter(m => m.id !== id));
@@ -769,7 +769,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
                       style={{ width: '100%', padding: '7px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 12, outline: 'none', marginBottom: 10, boxSizing: 'border-box', fontFamily: 'inherit' }} />
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
                       {BANCO_MEDICAMENTOS.filter(m => m.nombre.toLowerCase().includes(busquedaMed.toLowerCase()) || m.grupo.toLowerCase().includes(busquedaMed.toLowerCase())).map((m, i) => (
-                        <div key={i} onClick={() => { setNuevoMed({ nombre: m.nombre, dosis: m.dosis, frecuencia: m.frecuencia, duracion: '30 días', indicaciones: m.indicaciones }); setMostrarBanco(false); setBusquedaMed(''); }}
+                        <div key={i} onClick={() => { setNuevoMed({ nombre: m.nombre, dosis: m.dosis, frecuencia: m.frecuencia, duracion: '30 días', cantidad: '1', indicaciones: m.indicaciones }); setMostrarBanco(false); setBusquedaMed(''); }}
                           style={{ padding: '8px 10px', background: B.grayLt, borderRadius: 7, cursor: 'pointer', border: `1px solid ${B.grayMd}`, borderLeft: `3px solid ${B.green}` }}
                           onMouseEnter={e => e.currentTarget.style.background = B.green + '11'}
                           onMouseLeave={e => e.currentTarget.style.background = B.grayLt}>
@@ -790,6 +790,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
                   <CInput label="Dosis" value={nuevoMed.dosis} onChange={v => setNuevoMed(p => ({ ...p, dosis: v }))} placeholder="Ej: 1 tableta" half />
                   <CInput label="Frecuencia" value={nuevoMed.frecuencia} onChange={v => setNuevoMed(p => ({ ...p, frecuencia: v }))} placeholder="Ej: Cada 8 horas" half />
                   <CInput label="Duración" value={nuevoMed.duracion} onChange={v => setNuevoMed(p => ({ ...p, duracion: v }))} placeholder="Ej: 30 días" half />
+                  <CInput label="Cantidad a entregar" value={nuevoMed.cantidad} onChange={v => setNuevoMed(p => ({ ...p, cantidad: v }))} placeholder="Ej: 15" half />
                   <CInput label="Indicaciones adicionales" value={nuevoMed.indicaciones} onChange={v => setNuevoMed(p => ({ ...p, indicaciones: v }))} placeholder="Ej: Tomar con alimentos" half />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -810,7 +811,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
                   <div key={m.id} style={{ background: B.white, borderRadius: 10, border: `1.5px solid ${B.grayMd}`, padding: '12px 16px', marginBottom: 8, borderLeft: `4px solid ${B.green}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <p style={{ fontWeight: 700, fontSize: 14, color: B.navy, margin: '0 0 4px' }}>{i + 1}. {m.nombre}</p>
-                      <p style={{ fontSize: 12, color: B.teal, margin: '0 0 2px' }}>{m.dosis} · {m.frecuencia} · {m.duracion}</p>
+                      <p style={{ fontSize: 12, color: B.teal, margin: '0 0 2px' }}>{m.dosis} · {m.frecuencia} · {m.duracion}{m.cantidad ? ' · Cantidad: #' + m.cantidad : ''}</p>
                       {m.indicaciones && <p style={{ fontSize: 11, color: B.gray, margin: 0 }}>{m.indicaciones}</p>}
                     </div>
                     <button onClick={() => removeMedicamento(m.id)}
@@ -1164,7 +1165,7 @@ function ModalEditarConsulta({ paciente, consulta, usuario, onClose, onGuardado 
   const [busquedaCie, setBusquedaCie] = useState('');
   const [cie10Results, setCie10Results] = useState([]);
   const [buscandoCie, setBuscandoCie] = useState(false);
-  const [nuevoMed, setNuevoMed] = useState({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
+  const [nuevoMed, setNuevoMed] = useState({ nombre: '', dosis: '', frecuencia: '', duracion: '', cantidad: '', indicaciones: '' });
   const [tab, setTab] = useState('resumen');
   const [guardando, setGuardando] = useState(false);
 
@@ -1178,7 +1179,7 @@ function ModalEditarConsulta({ paciente, consulta, usuario, onClose, onGuardado 
   };
 
   const addDiag = (d) => { if (!diagnosticos.find(x => x.code === d.code)) setDiagnosticos(p => [...p, d]); setBusquedaCie(''); setCie10Results([]); };
-  const addMed = () => { if (!nuevoMed.nombre.trim()) return; setMedicamentos(p => [...p, { ...nuevoMed, id: Date.now() }]); setNuevoMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' }); };
+  const addMed = () => { if (!nuevoMed.nombre.trim()) return; setMedicamentos(p => [...p, { ...nuevoMed, id: Date.now() }]); setNuevoMed({ nombre: '', dosis: '', frecuencia: '', duracion: '', cantidad: '', indicaciones: '' }); };
 
   const guardar = async () => {
     setGuardando(true);
@@ -1457,33 +1458,30 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   const codigo = String(Math.floor(Math.random() * 9000) + 1000);
   const logoSrc = 'data:image/jpeg;base64,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FNUftFbrdcKyS5VNTHRMc2na+pjiY2JgLSTGREeN3JxLshT0Y9/Mjrya8JffrHSjNTM06/UdsF2fH1raHtLOtLeHiBDc5+jz93NejbrjQXa1wXK2VcNXR1DBJFPC8OZI0+BBHiFD7Nlr1HeGXCC+U9PC2+09zbbWd6FkUcDIscZj6wyDhIHe4cYyM5WZbYae1bpLR1JprUUlklpbfTR09LLb3Sl78ZyZA8ADyxj1VbUrEbiVq2tM6mGcIiLJqIiICIiAiIgIiICIiAiIgIiICIiAiIgIvh8Ucn042u94yvjstN/Ij/KFHccyLh7LTfyI/wAoTstN/Ij/AChO45l0oLxaqmZ8MFxpXyMkMT4xKOJrw7hLSPHOeS7bI2RjDGBo9BheMzSdkjvsV3jpnNqY5XzhxeXd54dnxzgZe84GBk5Uj8qNYaZpK2ppam8U8UlKQJi/IawlzW44sYyC9oIB5ZGcLifrnSjZZmC8wvMHH1pja54ZwOLXZLQQO81w9SOS61Vt7p6tvTrjUtqpMve8U7piYWl7mvkw32Oc0Eg8sk4xkrgdtnpoVU01MyqpBLGYjHTyBjWtzkBox3QDzAHsHig9GXW+lYaVlQ+9U/Vv8CA4kciSSAMgDhPFn6OOeF77XtfGHscHNcMhwOQR7ViUm3VhdFL1U1yp55mvZLVQ1bmyyB+es4nefETk+oGMYWUQUkFPQw0kbB1UTGxsB54AGB/7IOZFw9lpv5Ef5QnZab+RH+UKO45kXD2Wm/kR/lC+2QxRnLI2N9wwncfaIikEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQf/Z';
 
-  const recetaBody = `
+  const numeroALetras = c => {
+    const n = Math.min(99, parseInt(c) || 1);
+    const u = ['CERO','UNO','DOS','TRES','CUATRO','CINCO','SEIS','SIETE','OCHO','NUEVE','DIEZ','ONCE','DOCE','TRECE','CATORCE','QUINCE','DIECISEIS','DIECISIETE','DIECIOCHO','DIECINUEVE','VEINTE'];
+    if (n <= 20) return u[n];
+    const dec = ['','','VEINTE','TREINTA','CUARENTA','CINCUENTA','SESENTA','SETENTA','OCHENTA','NOVENTA'];
+    const d = Math.floor(n / 10), r = n % 10;
+    if (n < 30) return r ? 'VEINTI' + u[r] : 'VEINTE';
+    return r ? dec[d] + ' Y ' + u[r] : dec[d];
+  };
+  const cantidadNum = m => Math.min(99, parseInt(m.cantidad) || 1);
+  const posologia = m => [m.dosis, m.frecuencia, m.duracion].filter(Boolean).join(', ').toUpperCase();
+
+  const datosPaciente = `
     <div style="font-size:11px;margin-bottom:8px;"><strong>Código:</strong> ${codigo}</div>
     <div style="font-size:11px;margin-bottom:4px;"><strong>Fecha:</strong> Quito ${fmtV(fechaConsulta)} | <strong>Válida hasta:</strong> ${fmtV(validaHasta)}</div>
     <div style="font-size:11px;margin-bottom:4px;"><strong>Paciente:</strong> ${paciente.apellido?.toUpperCase()} ${paciente.nombre?.toUpperCase()}</div>
     <div style="font-size:11px;margin-bottom:4px;"><strong>Cédula:</strong> ${paciente.cedula || '—'}</div>
     <div style="font-size:11px;margin-bottom:8px;"><strong>Edad:</strong> ${age} año(s)</div>
     ${diags.length > 0 ? `<div style="font-size:11px;margin-bottom:12px;"><strong>Diagnóstico:</strong> ${diags.map(d => d.code + ' ' + d.desc).join(' - ')}</div>` : ''}
-    <hr style="border:1px solid #ccc;margin:10px 0;">
-    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
-      <thead><tr style="border-bottom:2px solid #000;">
-        <th style="text-align:left;padding:4px;font-size:11px;">MEDICAMENTOS.-</th>
-        <th style="text-align:center;padding:4px;font-size:11px;width:80px;">CANTIDAD.-</th>
-        <th style="text-align:left;padding:4px;font-size:11px;">INDICACIONES.-</th>
-      </tr></thead>
-      <tbody>
-        ${medicamentos.map((m, i) => `
-          <tr><td style="padding:6px 4px;font-size:11px;vertical-align:top;">
-            ${i+1}. <strong>${m.nombre}</strong>
-          </td>
-          <td style="padding:6px 4px;font-size:11px;text-align:center;vertical-align:top;"># 1<br>(UN0)</td>
-          <td style="padding:6px 4px;font-size:11px;vertical-align:top;">${m.dosis || ''}${m.frecuencia ? ', ' + m.frecuencia : ''}${m.duracion ? '. ' + m.duracion : ''}</td></tr>
-          ${m.indicaciones ? `<tr><td colspan="3" style="padding:0 4px 6px;font-size:10px;color:#555;font-style:italic;">${m.indicaciones}</td></tr>` : ''}
-        `).join('')}
-      </tbody>
-    </table>
+    <hr style="border:1px solid #ccc;margin:10px 0;">`;
+
+  const observacionesFirma = `
     <div style="margin-bottom:6px;font-size:11px;"><strong>OBSERVACIONES:</strong></div>
-    <div style="margin-bottom:4px;font-size:11px;">Recomendaciones:</div>
+    <div style="margin-bottom:4px;font-size:11px;">Recomendaciones: ${consulta.indicaciones || ''}</div>
     <div style="margin-bottom:4px;font-size:11px;">Signos de Alarma:</div>
     <div style="margin-bottom:16px;font-size:11px;">Alergias: ${paciente.alergias || ''}</div>
     <div style="font-size:11px;margin-bottom:30px;"><strong>Próxima Cita:</strong> ${consulta.proxima_visita ? fmtV(new Date(consulta.proxima_visita + 'T12:00:00')) : ''}</div>
@@ -1494,12 +1492,45 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
       <div style="font-size:10px;">Contacto: 0984075703</div>
     </div>`;
 
+  const recetaIzq = `${datosPaciente}
+    <div style="text-align:center;font-weight:700;font-size:12px;letter-spacing:2px;margin-bottom:8px;">RECETA</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+      <thead><tr style="border-bottom:2px solid #000;">
+        <th style="text-align:left;padding:4px;font-size:11px;">MEDICAMENTOS.-</th>
+        <th style="text-align:center;padding:4px;font-size:11px;width:90px;">CANTIDAD.-</th>
+      </tr></thead>
+      <tbody>
+        ${medicamentos.map((m, i) => `
+          <tr><td style="padding:6px 4px;font-size:11px;vertical-align:top;">
+            ${i+1}. <strong>${m.nombre}</strong><br>
+            <span style="font-size:10px;">${posologia(m)}</span>
+          </td>
+          <td style="padding:6px 4px;font-size:11px;text-align:center;vertical-align:top;"># ${cantidadNum(m)}<br>(${numeroALetras(m.cantidad)})</td></tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ${observacionesFirma}`;
+
+  const recetaDer = `${datosPaciente}
+    <div style="text-align:center;font-weight:700;font-size:12px;letter-spacing:2px;margin-bottom:8px;">INDICACIONES</div>
+    <div style="border-bottom:2px solid #000;padding:4px;font-size:11px;font-weight:700;margin-bottom:6px;">INDICACIONES.-</div>
+    ${medicamentos.map((m, i) => `
+      <div style="margin-bottom:12px;font-size:11px;">
+        ${i+1}. <strong>${m.nombre}</strong> — # ${cantidadNum(m)} (${numeroALetras(m.cantidad)})<br>
+        <span style="font-size:10px;">${posologia(m)}</span>
+        ${m.indicaciones ? `<br><span style="font-size:10px;color:#555;font-style:italic;">${m.indicaciones}</span>` : ''}
+      </div>
+    `).join('')}
+    ${observacionesFirma}`;
+
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
   <title>Receta MSP — ${paciente.nombre}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Segoe UI',Arial,sans-serif;background:white;padding:10px;}
-    .page{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px;margin:0 auto;}
+    .page{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1050px;margin:0 auto;}
+    @page{size:A4 landscape;margin:8mm;}
+    @media print{.page{max-width:100%;gap:12px;}}
     .copy{border:1px solid #ccc;padding:14px;}
     .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #ccc;padding-bottom:10px;margin-bottom:10px;}
     .header-info{font-size:10px;color:#333;line-height:1.5;}
@@ -1509,7 +1540,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   <div class="page">
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:40px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:60px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 313.<br>
@@ -1517,11 +1548,11 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
           <strong>Telef.:</strong> 0984075703
         </div>
       </div>
-      ${recetaBody}
+      ${recetaIzq}
     </div>
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:40px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:60px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 313.<br>
@@ -1529,7 +1560,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
           <strong>Telef.:</strong> 0984075703
         </div>
       </div>
-      ${recetaBody}
+      ${recetaDer}
     </div>
   </div>
   <button class="print-btn" onclick="window.print()">🖨 Imprimir receta</button>
