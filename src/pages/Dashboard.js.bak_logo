@@ -126,7 +126,7 @@ export default function Dashboard({ session }) {
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <div style={{ background: 'white', borderRadius: 8, padding: '4px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logo-imc.jpg" alt="IMC" style={{ height: 34, width: 'auto', display: 'block' }} />
+            <span style={{ fontWeight: 800, color: B.navy, fontSize: 14, letterSpacing: 1 }}>IMC</span>
           </div>
         </div>
 
