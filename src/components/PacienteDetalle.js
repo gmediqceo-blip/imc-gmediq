@@ -266,14 +266,16 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
           <TabFisioterapia paciente={paciente} valoraciones={valoraciones} planes={planes} onActualizar={fetchTodo} usuario={usuario} />
         )}
 
-        {/* MÉDICO */}
-        {tab === 'medico' && (
-          <ConsultaMedica
-            paciente={paciente}
-            consultas={consultasMed}
-            onActualizar={fetchTodo}
-            usuario={usuario}
-          />
+        {/* MÉDICO — siempre montado para conservar el borrador al navegar entre pestañas */}
+        {tabs.some(t => t.key === 'medico') && (
+          <div style={{ display: tab === 'medico' ? 'block' : 'none' }}>
+            <ConsultaMedica
+              paciente={paciente}
+              consultas={consultasMed}
+              onActualizar={fetchTodo}
+              usuario={usuario}
+            />
+          </div>
         )}
 
         {/* NUTRICIÓN */}

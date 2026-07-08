@@ -597,8 +597,8 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.82)', display: 'flex', alignItems: 'stretch', zIndex: 1000 }}>
-      <div style={{ background: B.grayLt, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', alignItems: 'stretch' }}>
+      <div style={{ background: B.grayLt, width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: 12, border: `1.5px solid ${B.grayMd}` }}>
 
         {/* Header */}
         <div style={{ background: B.teal, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
