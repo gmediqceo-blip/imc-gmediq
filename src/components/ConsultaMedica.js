@@ -1540,24 +1540,24 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   <div class="page">
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:60px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:90px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
-          Edificio Citimed, 3er Piso, Consultorio 313.<br>
-          <strong>Correo:</strong> gmediqceo@gmail.com<br>
-          <strong>Telef.:</strong> 0984075703
+          Edificio Citimed, 3er Piso, Consultorio 301.<br>
+          <strong>Correo:</strong> imc_info@institutometabolicoec.com<br>
+          <strong>Telef.:</strong> 0992552205 - 025100835
         </div>
       </div>
       ${recetaIzq}
     </div>
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:60px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:90px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
-          Edificio Citimed, 3er Piso, Consultorio 313.<br>
-          <strong>Correo:</strong> gmediqceo@gmail.com<br>
-          <strong>Telef.:</strong> 0984075703
+          Edificio Citimed, 3er Piso, Consultorio 301.<br>
+          <strong>Correo:</strong> imc_info@institutometabolicoec.com<br>
+          <strong>Telef.:</strong> 0992552205 - 025100835
         </div>
       </div>
       ${recetaDer}
