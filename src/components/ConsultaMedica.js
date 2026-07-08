@@ -1511,14 +1511,13 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     </table>
     ${observacionesFirma}`;
 
+  const instruccion = m => [m.dosis, m.frecuencia, m.duracion ? 'POR ' + m.duracion : ''].filter(Boolean).join(' ').toUpperCase();
+
   const recetaDer = `${datosPaciente}
     <div style="text-align:center;font-weight:700;font-size:12px;letter-spacing:2px;margin-bottom:8px;">INDICACIONES</div>
-    <div style="border-bottom:2px solid #000;padding:4px;font-size:11px;font-weight:700;margin-bottom:6px;">INDICACIONES.-</div>
     ${medicamentos.map((m, i) => `
-      <div style="margin-bottom:12px;font-size:11px;">
-        ${i+1}. <strong>${m.nombre}</strong> — # ${cantidadNum(m)} (${numeroALetras(m.cantidad)})<br>
-        <span style="font-size:10px;">${posologia(m)}</span>
-        ${m.indicaciones ? `<br><span style="font-size:10px;color:#555;font-style:italic;">${m.indicaciones}</span>` : ''}
+      <div style="margin-bottom:14px;font-size:11px;line-height:1.6;">
+        ${i+1}. <strong>${m.nombre}</strong> — # ${cantidadNum(m)} (${numeroALetras(m.cantidad)}) ${instruccion(m)}${m.indicaciones ? '. ' + m.indicaciones.toUpperCase() : ''}
       </div>
     `).join('')}
     ${observacionesFirma}`;
@@ -1540,7 +1539,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   <div class="page">
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:90px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:180px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 301.<br>
@@ -1552,7 +1551,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     </div>
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:90px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:180px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 301.<br>
