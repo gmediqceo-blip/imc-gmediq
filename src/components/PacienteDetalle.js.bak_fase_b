@@ -9,7 +9,6 @@ import Parametros from './Parametros';
 import SugerenciasIA from './SugerenciasIA';
 import TabNutricionV2 from './TabNutricionV2';
 import EvolucionAntropometrica from './EvolucionAntropometrica';
-import TabCosmetologia from './TabCosmetologia';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -30,7 +29,6 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ejercicios, setEjercicios] = useState([]);
-  const [sesionesCosm, setSesionesCosm] = useState([]);
 
   const age = calcAge(pacienteFull.fecha_nacimiento);
 
@@ -54,14 +52,13 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
   }, [paciente.id]);
 
   const fetchTodo = async () => {
-    const [pacFull, v, m, n, pl, ej, cosm] = await Promise.all([
+    const [pacFull, v, m, n, pl, ej] = await Promise.all([
       supabase.from('pacientes').select('*').eq('id', paciente.id).single(),
       supabase.from('valoraciones').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('consultas_medicas').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('consultas_nutricion').select('*').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('planes_ejercicio').select('*, plan_ejercicios(*)').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
       supabase.from('ejercicios').select('*').eq('activo', true).order('categoria').order('nombre'),
-      supabase.from('sesiones_cosmetologia').select('*, tratamientos_cosmetologia(nombre, icono)').eq('paciente_id', paciente.id).order('fecha', { ascending: false }),
     ]);
     if (pacFull.data) setPacienteFull(pacFull.data);
     setValoraciones(v.data || []);
@@ -69,7 +66,6 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
     setConsultasNut(n.data || []);
     setPlanes(pl.data || []);
     setEjercicios(ej.data || []);
-    setSesionesCosm(cosm.data || []);
     setLoading(false);
   };
 
@@ -92,7 +88,6 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
     { key: 'nutricion', label: '🥗 Nutrición', roles: ['admin','secretaria','nutricionista'] },
     { key: 'evolucion', label: '📈 Evolución', roles: null },
     { key: 'ejercicio', label: '🏋️ Plan ejercicio', roles: ['admin','secretaria','fisioterapeuta'] },
-    { key: 'cosmetologia', label: '💆 Cosmetología', roles: ['admin','secretaria','cosmetologa'] },
     { key: 'archivos', label: '📁 Archivos', roles: null },
   ];
   const tabs = allTabs.filter(t => !t.roles || t.roles.includes(rol));
@@ -252,7 +247,6 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
             consultasMed={consultasMed}
             consultasNut={consultasNut}
             planes={planes}
-            sesionesCosm={sesionesCosm}
           />
         )}
 
@@ -295,11 +289,6 @@ export default function PacienteDetalle({ paciente, onVolver, usuario }) {
             onActualizar={fetchTodo}
             usuario={usuario}
           />
-        )}
-
-        {/* COSMETOLOGÍA */}
-        {tab === 'cosmetologia' && (
-          <TabCosmetologia paciente={paciente} usuario={usuario} />
         )}
 
         {/* ARCHIVOS */}

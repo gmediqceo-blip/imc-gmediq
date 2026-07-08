@@ -949,7 +949,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
 
 
 // ─── HISTORIAL UNIFICADO ──────────────────────────────────────────────────────
-export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, planes, sesionesCosm = [] }) {
+export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, planes }) {
   const [openIdx, setOpenIdx] = useState(null);
 
   const eventos = [
@@ -976,10 +976,6 @@ export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, p
       titulo: `Plan de ejercicio · Fase ${p.fase}`,
       sub: `${p.terapeuta_nombre || '—'} · ${p.entorno === 'gym' ? 'Gimnasio' : 'Casa'} · ${p.plan_ejercicios?.length || 0} ejercicios`,
       color: '#0B1F3B', icon: '🏋️', data: p })),
-    ...sesionesCosm.map(s => ({ tipo: 'cosmetologia', fecha: s.fecha,
-      titulo: `Cosmetología · ${s.tratamientos_cosmetologia?.nombre || 'Tratamiento'}`,
-      sub: `${s.zona_tratada ? s.zona_tratada : ''}${s.duracion_min ? ' · ' + s.duracion_min + ' min' : ''}${s.sesion_numero && s.sesiones_paquete ? ' · Sesión ' + s.sesion_numero + '/' + s.sesiones_paquete : ''}`,
-      color: '#C9A86A', icon: '💆', data: s })),
   ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
   const fmtDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -1041,17 +1037,6 @@ export function HistorialUnificado({ valoraciones, consultasMed, consultasNut, p
                       )}
                       {ev.data.diagnostico && <p style={{ fontSize: 12, color: '#0B1F3B', marginTop: 8 }}><strong>Diagnóstico:</strong> {ev.data.diagnostico}</p>}
                       {ev.data.limitantes && <p style={{ fontSize: 12, color: '#C25A00', marginTop: 4 }}><strong>Limitantes:</strong> {ev.data.limitantes}</p>}
-                    </div>
-                  )}
-
-                  {/* COSMETOLOGÍA */}
-                  {ev.tipo === 'cosmetologia' && (
-                    <div>
-                      {ev.data.zona_tratada && <p style={{ fontSize: 12, color: '#0B1F3B', marginBottom: 6 }}><strong>Zona tratada:</strong> {ev.data.zona_tratada}</p>}
-                      {ev.data.parametros && <p style={{ fontSize: 12, color: '#0B1F3B', marginBottom: 6 }}><strong>Parámetros del equipo:</strong> {ev.data.parametros}</p>}
-                      {ev.data.duracion_min && <p style={{ fontSize: 12, color: '#0B1F3B', marginBottom: 6 }}><strong>Duración:</strong> {ev.data.duracion_min} min</p>}
-                      {ev.data.sesion_numero && ev.data.sesiones_paquete && <p style={{ fontSize: 12, color: '#C9A86A', fontWeight: 700, marginBottom: 6 }}>Sesión {ev.data.sesion_numero} de {ev.data.sesiones_paquete} del paquete</p>}
-                      {ev.data.observaciones && <p style={{ fontSize: 12, color: '#6E6E70', margin: 0, fontStyle: 'italic' }}>📝 {ev.data.observaciones}</p>}
                     </div>
                   )}
 
