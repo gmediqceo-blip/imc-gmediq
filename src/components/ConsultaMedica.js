@@ -1539,7 +1539,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   <div class="page">
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:180px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:120px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 301.<br>
@@ -1551,7 +1551,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     </div>
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:180px;width:auto;">
+        <img src="${logoSrc}" alt="IMC" style="height:120px;width:auto;">
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 301.<br>
