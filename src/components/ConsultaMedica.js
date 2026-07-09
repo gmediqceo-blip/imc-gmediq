@@ -1481,20 +1481,24 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     </div>
     ${diags.length > 0 ? `<div style="font-size:10.5px;margin-bottom:12px;padding:7px 12px;border-left:3px solid #C9A86A;background:#FBF7F0;border-radius:0 8px 8px 0;color:#0B1F3B;"><strong>Diagnóstico:</strong> ${diags.map(d => d.code + ' ' + d.desc).join(' - ')}</div>` : ''}`;
 
-  const observacionesFirma = `
+  const observaciones = `
     <div style="border-top:1.5px solid #DDE3EA;padding-top:8px;margin-top:6px;">
       <div style="font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:#4B647A;margin-bottom:5px;">OBSERVACIONES</div>
       <div style="font-size:10.5px;margin-bottom:3px;color:#0B1F3B;"><strong>Recomendaciones:</strong> ${consulta.indicaciones || ''}</div>
       <div style="font-size:10.5px;margin-bottom:3px;color:#0B1F3B;"><strong>Signos de alarma:</strong></div>
       <div style="font-size:10.5px;margin-bottom:6px;color:#0B1F3B;"><strong>Alergias:</strong> ${paciente.alergias || ''}</div>
-      <div style="font-size:10.5px;margin-bottom:28px;color:#0B1F3B;"><strong>Próxima cita:</strong> ${consulta.proxima_visita ? fmtV(new Date(consulta.proxima_visita + 'T12:00:00')) : ''}</div>
-    </div>
-    <div style="text-align:center;margin-top:12px;">
+      <div style="font-size:10.5px;margin-bottom:8px;color:#0B1F3B;"><strong>Próxima cita:</strong> ${consulta.proxima_visita ? fmtV(new Date(consulta.proxima_visita + 'T12:00:00')) : ''}</div>
+    </div>`;
+
+  const firma = `
+    <div style="text-align:center;margin-top:34px;">
       <div style="width:210px;border-top:1.5px solid #0B1F3B;margin:0 auto 6px;"></div>
       <div style="font-size:11px;font-weight:800;color:#0B1F3B;">${consulta.medico_nombre || 'Dr. Diego Alejandro Díaz Salcedo'}</div>
       <div style="font-size:9.5px;color:#4B647A;">Cirugía General y Laparoscópica</div>
       <div style="font-size:9.5px;color:#4B647A;">Registro Profesional: 1804536876 · Contacto: 0984075703</div>
     </div>`;
+
+  const observacionesFirma = `${observaciones}${firma}`;
 
   const tituloSeccion = txt => `
     <div style="text-align:center;margin-bottom:10px;">
@@ -1521,7 +1525,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
         `).join('')}
       </tbody>
     </table>
-    ${observacionesFirma}`;
+    ${firma}`;
 
   const instruccion = m => [m.dosis, m.frecuencia, m.duracion ? 'POR ' + m.duracion : ''].filter(Boolean).join(' ').toUpperCase();
 
