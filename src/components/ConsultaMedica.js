@@ -1549,8 +1549,8 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Segoe UI',Arial,sans-serif;background:white;padding:10px;}
     .page{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1050px;margin:0 auto;}
-    @page{size:A4 landscape;margin:8mm;}
-    @media print{.page{max-width:100%;gap:12px;}.copy{min-height:193mm;}}
+    @page{size:A4 landscape;margin:5mm;}
+    @media print{.page{max-width:100%;gap:12px;}.copy{min-height:198mm;}}
     .copy{border:1.5px solid #DDE3EA;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
     .copy-body{padding:14px 16px;display:flex;flex-direction:column;flex:1;}
     .header{display:flex;justify-content:space-between;align-items:center;background:#0B1F3B;padding:12px 16px;gap:12px;}
