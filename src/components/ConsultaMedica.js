@@ -1471,41 +1471,53 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   const posologia = m => [m.dosis, m.frecuencia, m.duracion].filter(Boolean).join(', ').toUpperCase();
 
   const datosPaciente = `
-    <div style="font-size:11px;margin-bottom:8px;"><strong>Código:</strong> ${codigo}</div>
-    <div style="font-size:11px;margin-bottom:4px;"><strong>Fecha:</strong> Quito ${fmtV(fechaConsulta)} | <strong>Válida hasta:</strong> ${fmtV(validaHasta)}</div>
-    <div style="font-size:11px;margin-bottom:4px;"><strong>Paciente:</strong> ${paciente.apellido?.toUpperCase()} ${paciente.nombre?.toUpperCase()}</div>
-    <div style="font-size:11px;margin-bottom:4px;"><strong>Cédula:</strong> ${paciente.cedula || '—'}</div>
-    <div style="font-size:11px;margin-bottom:8px;"><strong>Edad:</strong> ${age} año(s)</div>
-    ${diags.length > 0 ? `<div style="font-size:11px;margin-bottom:12px;"><strong>Diagnóstico:</strong> ${diags.map(d => d.code + ' ' + d.desc).join(' - ')}</div>` : ''}
-    <hr style="border:1px solid #ccc;margin:10px 0;">`;
+    <div style="background:#F4F6F8;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:grid;grid-template-columns:1.5fr 1fr;gap:3px 14px;">
+      <div style="font-size:10.5px;color:#0B1F3B;"><strong>Paciente:</strong> ${paciente.apellido?.toUpperCase()} ${paciente.nombre?.toUpperCase()}</div>
+      <div style="font-size:10.5px;color:#0B1F3B;"><strong>Código:</strong> ${codigo}</div>
+      <div style="font-size:10.5px;color:#0B1F3B;"><strong>Cédula:</strong> ${paciente.cedula || '—'}</div>
+      <div style="font-size:10.5px;color:#0B1F3B;"><strong>Fecha:</strong> Quito ${fmtV(fechaConsulta)}</div>
+      <div style="font-size:10.5px;color:#0B1F3B;"><strong>Edad:</strong> ${age} año(s)</div>
+      <div style="font-size:10.5px;color:#0B1F3B;"><strong>Válida hasta:</strong> ${fmtV(validaHasta)}</div>
+    </div>
+    ${diags.length > 0 ? `<div style="font-size:10.5px;margin-bottom:12px;padding:7px 12px;border-left:3px solid #C9A86A;background:#FBF7F0;border-radius:0 8px 8px 0;color:#0B1F3B;"><strong>Diagnóstico:</strong> ${diags.map(d => d.code + ' ' + d.desc).join(' - ')}</div>` : ''}`;
 
   const observacionesFirma = `
-    <div style="margin-bottom:6px;font-size:11px;"><strong>OBSERVACIONES:</strong></div>
-    <div style="margin-bottom:4px;font-size:11px;">Recomendaciones: ${consulta.indicaciones || ''}</div>
-    <div style="margin-bottom:4px;font-size:11px;">Signos de Alarma:</div>
-    <div style="margin-bottom:16px;font-size:11px;">Alergias: ${paciente.alergias || ''}</div>
-    <div style="font-size:11px;margin-bottom:30px;"><strong>Próxima Cita:</strong> ${consulta.proxima_visita ? fmtV(new Date(consulta.proxima_visita + 'T12:00:00')) : ''}</div>
-    <div style="text-align:center;margin-top:20px;">
-      <div style="font-size:11px;font-weight:700;">${consulta.medico_nombre || 'Dr. Diego Alejandro Díaz Salcedo'}</div>
-      <div style="font-size:10px;">Cirugía General y Laparoscópica</div>
-      <div style="font-size:10px;">Registro Profesional: 1804536876</div>
-      <div style="font-size:10px;">Contacto: 0984075703</div>
+    <div style="border-top:1.5px solid #DDE3EA;padding-top:8px;margin-top:6px;">
+      <div style="font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:#4B647A;margin-bottom:5px;">OBSERVACIONES</div>
+      <div style="font-size:10.5px;margin-bottom:3px;color:#0B1F3B;"><strong>Recomendaciones:</strong> ${consulta.indicaciones || ''}</div>
+      <div style="font-size:10.5px;margin-bottom:3px;color:#0B1F3B;"><strong>Signos de alarma:</strong></div>
+      <div style="font-size:10.5px;margin-bottom:6px;color:#0B1F3B;"><strong>Alergias:</strong> ${paciente.alergias || ''}</div>
+      <div style="font-size:10.5px;margin-bottom:28px;color:#0B1F3B;"><strong>Próxima cita:</strong> ${consulta.proxima_visita ? fmtV(new Date(consulta.proxima_visita + 'T12:00:00')) : ''}</div>
+    </div>
+    <div style="text-align:center;margin-top:12px;">
+      <div style="width:210px;border-top:1.5px solid #0B1F3B;margin:0 auto 6px;"></div>
+      <div style="font-size:11px;font-weight:800;color:#0B1F3B;">${consulta.medico_nombre || 'Dr. Diego Alejandro Díaz Salcedo'}</div>
+      <div style="font-size:9.5px;color:#4B647A;">Cirugía General y Laparoscópica</div>
+      <div style="font-size:9.5px;color:#4B647A;">Registro Profesional: 1804536876 · Contacto: 0984075703</div>
+    </div>`;
+
+  const tituloSeccion = txt => `
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-weight:800;font-size:13px;letter-spacing:3px;color:#0B1F3B;">${txt}</div>
+      <div style="width:56px;height:3px;background:#C9A86A;border-radius:2px;margin:4px auto 0;"></div>
     </div>`;
 
   const recetaIzq = `${datosPaciente}
-    <div style="text-align:center;font-weight:700;font-size:12px;letter-spacing:2px;margin-bottom:8px;">RECETA</div>
+    ${tituloSeccion('RECETA')}
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
-      <thead><tr style="border-bottom:2px solid #000;">
-        <th style="text-align:left;padding:4px;font-size:11px;">MEDICAMENTOS.-</th>
-        <th style="text-align:center;padding:4px;font-size:11px;width:90px;">CANTIDAD.-</th>
+      <thead><tr>
+        <th style="text-align:left;padding:6px 10px;font-size:9.5px;letter-spacing:1.5px;background:#0B1F3B;color:white;border-radius:7px 0 0 7px;">MEDICAMENTOS</th>
+        <th style="text-align:center;padding:6px 10px;font-size:9.5px;letter-spacing:1.5px;background:#0B1F3B;color:white;width:90px;border-radius:0 7px 7px 0;">CANTIDAD</th>
       </tr></thead>
       <tbody>
         ${medicamentos.map((m, i) => `
-          <tr><td style="padding:6px 4px;font-size:11px;vertical-align:top;">
-            ${i+1}. <strong>${m.nombre}</strong><br>
-            <span style="font-size:10px;">${posologia(m)}</span>
-          </td>
-          <td style="padding:6px 4px;font-size:11px;text-align:center;vertical-align:top;"># ${cantidadNum(m)}<br>(${numeroALetras(m.cantidad)})</td></tr>
+          <tr style="background:${i % 2 === 0 ? 'white' : '#F4F6F8'};">
+            <td style="padding:8px 10px;font-size:11px;vertical-align:top;color:#0B1F3B;">
+              ${i+1}. <strong>${m.nombre}</strong><br>
+              <span style="font-size:10px;color:#4B647A;">${posologia(m)}</span>
+            </td>
+            <td style="padding:8px 10px;font-size:11px;text-align:center;vertical-align:top;font-weight:700;color:#0B1F3B;"># ${cantidadNum(m)}<br><span style="font-weight:400;font-size:9.5px;color:#6E6E70;">(${numeroALetras(m.cantidad)})</span></td>
+          </tr>
         `).join('')}
       </tbody>
     </table>
@@ -1514,9 +1526,9 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
   const instruccion = m => [m.dosis, m.frecuencia, m.duracion ? 'POR ' + m.duracion : ''].filter(Boolean).join(' ').toUpperCase();
 
   const recetaDer = `${datosPaciente}
-    <div style="text-align:center;font-weight:700;font-size:12px;letter-spacing:2px;margin-bottom:8px;">INDICACIONES</div>
+    ${tituloSeccion('INDICACIONES')}
     ${medicamentos.map((m, i) => `
-      <div style="margin-bottom:14px;font-size:11px;line-height:1.6;">
+      <div style="margin-bottom:8px;font-size:11px;line-height:1.6;padding:8px 12px;background:${i % 2 === 0 ? '#F4F6F8' : 'white'};border-radius:8px;color:#0B1F3B;">
         ${i+1}. <strong>${m.nombre}</strong> — # ${cantidadNum(m)} (${numeroALetras(m.cantidad)}) ${instruccion(m)}${m.indicaciones ? '. ' + m.indicaciones.toUpperCase() : ''}
       </div>
     `).join('')}
@@ -1530,36 +1542,37 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     .page{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1050px;margin:0 auto;}
     @page{size:A4 landscape;margin:8mm;}
     @media print{.page{max-width:100%;gap:12px;}}
-    .copy{border:1px solid #ccc;padding:14px;}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #ccc;padding-bottom:10px;margin-bottom:10px;}
-    .header-info{font-size:10px;color:#333;line-height:1.5;}
+    .copy{border:1.5px solid #DDE3EA;border-radius:14px;overflow:hidden;}
+    .copy-body{padding:14px 16px;}
+    .header{display:flex;justify-content:space-between;align-items:center;background:#0B1F3B;padding:12px 16px;gap:12px;}
+    .header-info{font-size:9.5px;color:rgba(255,255,255,0.92);line-height:1.55;}
     .print-btn{position:fixed;bottom:20px;right:20px;background:#0B1F3B;color:white;border:none;padding:10px 22px;border-radius:25px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
     @media print{body{padding:0;}.print-btn{display:none;}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}}
   </style></head><body>
   <div class="page">
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:120px;width:auto;">
+        <div style="background:white;border-radius:10px;padding:6px 14px;display:flex;align-items:center;"><img src="${logoSrc}" alt="IMC" style="height:64px;width:auto;display:block;"></div>
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 301.<br>
-          <strong>Correo:</strong> imc_info@institutometabolicoec.com<br>
-          <strong>Telef.:</strong> 0992552205 - 025100835
+          <strong style="color:#C9A86A;">Correo:</strong> imc_info@institutometabolicoec.com<br>
+          <strong style="color:#C9A86A;">Telef.:</strong> 0992552205 - 025100835
         </div>
       </div>
-      ${recetaIzq}
+      <div class="copy-body">${recetaIzq}</div>
     </div>
     <div class="copy">
       <div class="header">
-        <img src="${logoSrc}" alt="IMC" style="height:120px;width:auto;">
+        <div style="background:white;border-radius:10px;padding:6px 14px;display:flex;align-items:center;"><img src="${logoSrc}" alt="IMC" style="height:64px;width:auto;display:block;"></div>
         <div class="header-info" style="text-align:right;">
           Av. Mariana de Jesús OE702 y Nuño de Valderrama,<br>
           Edificio Citimed, 3er Piso, Consultorio 301.<br>
-          <strong>Correo:</strong> imc_info@institutometabolicoec.com<br>
-          <strong>Telef.:</strong> 0992552205 - 025100835
+          <strong style="color:#C9A86A;">Correo:</strong> imc_info@institutometabolicoec.com<br>
+          <strong style="color:#C9A86A;">Telef.:</strong> 0992552205 - 025100835
         </div>
       </div>
-      ${recetaDer}
+      <div class="copy-body">${recetaDer}</div>
     </div>
   </div>
   <button class="print-btn" onclick="window.print()">🖨 Imprimir receta</button>
