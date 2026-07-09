@@ -591,6 +591,7 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
       if (nuevoEstado) {
         await supabase.from('pacientes').update({ grupo: nuevoEstado }).eq('id', paciente.id);
       }
+      await supabase.from('citas').update({ estado: 'atendida' }).eq('paciente_id', paciente.id).eq('fecha', new Date().toISOString().split('T')[0]).in('estado', ['pendiente', 'preatendido', 'confirmada']);
       onGuardado();
     }
     setGuardando(false);

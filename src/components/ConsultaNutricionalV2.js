@@ -157,6 +157,8 @@ export default function ConsultaNutricionalV2({ paciente, usuario, protocolo, mo
         if (err) throw err;
       }
 
+      await supabase.from('citas').update({ estado: 'atendida' }).eq('paciente_id', paciente.id).eq('fecha', new Date().toISOString().split('T')[0]).in('estado', ['pendiente', 'preatendido', 'confirmada']);
+
       onGuardado();
     } catch (e) {
       setError(e.message);

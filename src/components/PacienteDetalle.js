@@ -478,6 +478,7 @@ function ModalValoracion({ paciente, usuario, onClose, onGuardado }) {
       if (form.nuevo_estado) {
         await supabase.from('pacientes').update({ grupo: form.nuevo_estado }).eq('id', paciente.id);
       }
+      await supabase.from('citas').update({ estado: 'atendida' }).eq('paciente_id', paciente.id).eq('fecha', new Date().toISOString().split('T')[0]).in('estado', ['pendiente', 'preatendido', 'confirmada']);
       onGuardado();
     }
     setGuardando(false);
@@ -630,7 +631,10 @@ function ModalMedico({ paciente, usuario, onClose, onGuardado }) {
     const data = { ...form, paciente_id: paciente.id, medico_id: usuario?.id };
     Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
     const { error } = await supabase.from('consultas_medicas').insert([data]);
-    if (!error) onGuardado();
+    if (!error) {
+      await supabase.from('citas').update({ estado: 'atendida' }).eq('paciente_id', paciente.id).eq('fecha', new Date().toISOString().split('T')[0]).in('estado', ['pendiente', 'preatendido', 'confirmada']);
+      onGuardado();
+    }
     setGuardando(false);
   };
   // Using shared Field, TextArea, SectionTitle from FormFields.js

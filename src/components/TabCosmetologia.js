@@ -217,7 +217,10 @@ function ModalSesion({ paciente, usuario, tratamientos, sesion, onClose, onGuard
     }
 
     if (resp.error) { setError('Error al guardar: ' + resp.error.message); setGuardando(false); }
-    else onGuardado();
+    else {
+      await supabase.from('citas').update({ estado: 'atendida' }).eq('paciente_id', paciente.id).eq('fecha', new Date().toISOString().split('T')[0]).in('estado', ['pendiente', 'preatendido', 'confirmada']);
+      onGuardado();
+    }
   };
 
   const inputStyle = { width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };
