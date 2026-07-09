@@ -1490,10 +1490,15 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
       <div style="font-size:10.5px;margin-bottom:8px;color:#0B1F3B;"><strong>Próxima cita:</strong> ${consulta.proxima_visita ? fmtV(new Date(consulta.proxima_visita + 'T12:00:00')) : ''}</div>
     </div>`;
 
+  const nombreMedico = (() => {
+    const n = consulta.medico_nombre || 'Diego Alejandro Díaz Salcedo';
+    return /^dr\.?\s/i.test(n) ? n : 'Dr. ' + n;
+  })();
+
   const firma = `
-    <div style="text-align:center;margin-top:34px;">
+    <div style="text-align:center;margin-top:auto;padding-top:34px;">
       <div style="width:210px;border-top:1.5px solid #0B1F3B;margin:0 auto 6px;"></div>
-      <div style="font-size:11px;font-weight:800;color:#0B1F3B;">${consulta.medico_nombre || 'Dr. Diego Alejandro Díaz Salcedo'}</div>
+      <div style="font-size:11px;font-weight:800;color:#0B1F3B;">${nombreMedico}</div>
       <div style="font-size:9.5px;color:#4B647A;">Cirugía General y Laparoscópica</div>
       <div style="font-size:9.5px;color:#4B647A;">Registro Profesional: 1804536876 · Contacto: 0984075703</div>
     </div>`;
@@ -1545,9 +1550,9 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     body{font-family:'Segoe UI',Arial,sans-serif;background:white;padding:10px;}
     .page{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1050px;margin:0 auto;}
     @page{size:A4 landscape;margin:8mm;}
-    @media print{.page{max-width:100%;gap:12px;}}
-    .copy{border:1.5px solid #DDE3EA;border-radius:14px;overflow:hidden;}
-    .copy-body{padding:14px 16px;}
+    @media print{.page{max-width:100%;gap:12px;}.copy{min-height:185mm;}}
+    .copy{border:1.5px solid #DDE3EA;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
+    .copy-body{padding:14px 16px;display:flex;flex-direction:column;flex:1;}
     .header{display:flex;justify-content:space-between;align-items:center;background:#0B1F3B;padding:12px 16px;gap:12px;}
     .header-info{font-size:9.5px;color:rgba(255,255,255,0.92);line-height:1.55;}
     .print-btn{position:fixed;bottom:20px;right:20px;background:#0B1F3B;color:white;border:none;padding:10px 22px;border-radius:25px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
