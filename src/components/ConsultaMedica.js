@@ -161,6 +161,7 @@ export default function ConsultaMedica({ paciente, consultas, onActualizar, usua
 
   return (
     <div>
+      {!modalNueva && (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <p style={{ fontWeight: 700, fontSize: 13, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
           {consultas.length} consulta{consultas.length !== 1 ? 's' : ''}
@@ -190,6 +191,7 @@ export default function ConsultaMedica({ paciente, consultas, onActualizar, usua
           />
         ))
       )}
+      </>)}
 
       {modalNueva && (
         <ModalConsulta
