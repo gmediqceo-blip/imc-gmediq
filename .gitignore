@@ -3,3 +3,16 @@ build/
 .env
 .DS_Store
 *.log
+
+# Backups locales
+*.bak
+*.bak_*
+*.backup
+
+# Scripts Python de trabajo
+receta_*.py
+consulta_*.py
+regla_*.py
+
+# Design System local
+IMC v2/
