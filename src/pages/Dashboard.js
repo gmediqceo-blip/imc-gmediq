@@ -6,6 +6,9 @@ import Usuarios from './Usuarios';
 import Agenda from './Agenda';
 import DashboardPaciente from '../components/DashboardPaciente';
 import CambiarPassword from '../components/CambiarPassword';
+import SidebarV2 from '../components/v2/SidebarV2';
+import HeaderMobileV2 from '../components/v2/HeaderMobileV2';
+import { Icon } from '../components/v2/Icon';
 
 const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
 
@@ -109,9 +112,39 @@ export default function Dashboard({ session }) {
   ];
 
   return (
-    <div style={{ fontFamily: "'Segoe UI', Arial, sans-serif", minHeight: '100vh', background: B.grayLt, display: 'flex', flexDirection: 'column', width: '100%', overflowX: 'hidden' }}>
+    <div className="v2" style={{ 
+      fontFamily: "'Poppins', 'Segoe UI', Arial, sans-serif", 
+      minHeight: '100vh', 
+      background: 'var(--canvas)', 
+      display: 'flex', 
+      flexDirection: isMobile ? 'column' : 'row',
+      width: '100%', 
+      overflowX: 'hidden',
+    }}>
+
+      {/* ═══════════════ SIDEBAR V2 (Desktop) ═══════════════ */}
+      {!isMobile && (
+        <SidebarV2
+          active={screen}
+          onSelect={irA}
+          usuario={usuario}
+          onLogout={handleLogout}
+          onAbrirPerfil={() => setModalPerfil(true)}
+        />
+      )}
+
+      {/* ═══════════════ HEADER MOBILE V2 ═══════════════ */}
+      {isMobile && (
+        <HeaderMobileV2
+          usuario={usuario}
+          menuAbierto={menuMovilAbierto}
+          onToggleMenu={() => setMenuMovilAbierto(!menuMovilAbierto)}
+          onAbrirPerfil={() => setModalPerfil(true)}
+        />
+      )}
       
-      {/* ═══════════════ NAVBAR ═══════════════ */}
+      {/* ═══════════════ NAVBAR VIEJA (OCULTA) ═══════════════ */}
+      <div style={{ display: 'none' }}>
       <nav style={{ 
         background: B.navy, 
         padding: isMobile ? '0 12px' : '0 24px', 
@@ -182,10 +215,11 @@ export default function Dashboard({ session }) {
           </div>
         )}
       </nav>
+      </div>
 
-      {/* Menú móvil desplegable */}
+      {/* Menú móvil desplegable V2 */}
       {isMobile && menuMovilAbierto && (
-        <div style={{ background: B.navy, borderTop: '1px solid rgba(255,255,255,0.1)', padding: '8px 12px 12px' }}>
+        <div style={{ background: 'var(--ink)', borderTop: '1px solid rgba(255,255,255,.1)', padding: '10px 12px 14px' }}>
           {navItems.map(item => (
             <button key={item.key} onClick={() => irA(item.key)}
               style={{ 
@@ -234,7 +268,12 @@ export default function Dashboard({ session }) {
       )}
 
       {/* ═══════════════ CONTENT ═══════════════ */}
-      <div style={{ flex: 1, overflow: 'auto', width: '100%' }}>
+      <div style={{ 
+        flex: 1, 
+        overflow: 'auto', 
+        width: '100%',
+        background: 'var(--canvas)',
+      }}>
         {screen === 'pacientes' && <Pacientes onAbrirPaciente={abrirPaciente} usuario={usuario} />}
         {screen === 'paciente_detalle' && pacienteActivo && (
           <PacienteDetalle paciente={pacienteActivo} onVolver={volverAPacientes} usuario={usuario} />
