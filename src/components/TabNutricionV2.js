@@ -14,6 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { Icon } from './v2/Icon';
 import TimelineFases from './TimelineFases';
 import EditorPlanSMAE from './EditorPlanSMAE';
 import AnamnesisNutricional from './AnamnesisNutricional';
@@ -22,8 +23,8 @@ import { generarPDFPlanSMAE } from './PDFNutricion';
 import PlanIntercambios from './PlanIntercambios';
 
 const B = {
-  navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
-  grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF',
+  navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#7C8DA1',
+  grayLt: '#FAFCFE', grayMd: '#E6EDF6', white: '#FFFFFF',
   green: '#1A7A4A', greenLt: '#4ADE80', red: '#B02020',
   orange: '#C25A00', amber: '#F59E0B', purple: '#7C3AED',
   softGreen: '#E6F5EE', softBlue: '#E8F2FA', softOrange: '#FFF0E0',
@@ -31,12 +32,12 @@ const B = {
 };
 
 const PROTOCOLOS = {
-  manga:       { nombre: 'Manga Gástrica',           emoji: '🔵', color: B.blue,    tieneFases: true,  bg: B.softBlue,   fasesDe: 'manga' },
-  balon:       { nombre: 'Balón Gástrico',           emoji: '🟣', color: B.purple,  tieneFases: true,  bg: B.softPurple, fasesDe: 'balon' },
-  glp1:        { nombre: 'GLP-1 (Ozempic/Wegovy)',   emoji: '💊', color: B.orange,  tieneFases: false, bg: B.softOrange, fasesDe: null    },
-  conservador: { nombre: 'Conservador IMC',          emoji: '🟢', color: B.green,   tieneFases: false, bg: B.softGreen,  fasesDe: null    },
-  bypass:      { nombre: 'Bypass Gástrico',          emoji: '🟡', color: '#F59E0B', tieneFases: true,  bg: '#FEF3C7',    fasesDe: 'manga' },
-  biparticion: { nombre: 'Bipartición de Tránsito',  emoji: '🔴', color: '#DC2626', tieneFases: true,  bg: '#FEE2E2',    fasesDe: 'manga' },
+  manga:       { nombre: 'Manga Gástrica',           emoji: '', color: B.blue,    tieneFases: true,  bg: B.softBlue,   fasesDe: 'manga' },
+  balon:       { nombre: 'Balón Gástrico',           emoji: '', color: B.purple,  tieneFases: true,  bg: B.softPurple, fasesDe: 'balon' },
+  glp1:        { nombre: 'GLP-1 (Ozempic/Wegovy)',   emoji: ''  , color: B.orange,  tieneFases: false, bg: B.softOrange, fasesDe: null    },
+  conservador: { nombre: 'Conservador IMC',          emoji: '', color: B.green,   tieneFases: false, bg: B.softGreen,  fasesDe: null    },
+  bypass:      { nombre: 'Bypass Gástrico',          emoji: '', color: '#F59E0B', tieneFases: true,  bg: '#FEF3C7',    fasesDe: 'manga' },
+  biparticion: { nombre: 'Bipartición de Tránsito',  emoji: '', color: '#DC2626', tieneFases: true,  bg: '#FEE2E2',    fasesDe: 'manga' },
 };
 
 export default function TabNutricionV2({ paciente, usuario }) {
@@ -145,7 +146,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
         usuario={usuario}
         planExistente={planSmae}
         onVolver={() => { setVista('resumen'); cargarDatos(); }}
-        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Plan SMAE guardado ✓'); }}
+        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Plan SMAE guardado'); }}
       />
     );
   }
@@ -156,7 +157,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
         paciente={paciente}
         usuario={usuario}
         onVolver={() => { setVista('resumen'); cargarDatos(); }}
-        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Anamnesis guardada ✓'); }}
+        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Anamnesis guardada'); }}
       />
     );
   }
@@ -169,7 +170,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
         protocolo={protocolo}
         modo="nueva"
         onVolver={() => { setVista('resumen'); cargarDatos(); }}
-        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Consulta guardada ✓'); }}
+        onGuardado={() => { setVista('resumen'); cargarDatos(); showToast('Consulta guardada'); }}
       />
     );
   }
@@ -190,7 +191,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
       <div style={{ padding: 20 }}>
         <button
           onClick={() => { setVista('resumen'); cargarDatos(); }}
-          style={{ padding: '8px 16px', background: 'transparent', color: B.teal, border: `1.5px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 16 }}>
+          style={{ padding: '8px 16px', background: 'transparent', color: B.teal, border: `1px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 16 }}>
           ← Volver a nutrición
         </button>
         <PlanIntercambios paciente={paciente} usuario={usuario} />
@@ -221,14 +222,14 @@ export default function TabNutricionV2({ paciente, usuario }) {
       }}>
         <div>
           <div style={{ fontSize: 11, opacity: 0.85, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 }}>
-            🥗 Módulo Nutrición
+            Módulo Nutrición
           </div>
           <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4 }}>
             {paciente.nombre} {paciente.apellido || ''}
           </div>
           <div style={{ fontSize: 12, opacity: 0.95, marginTop: 4 }}>
-            Protocolo: {protocoloInfo.emoji} <strong>{protocoloInfo.nombre}</strong>
-            {paciente.fecha_procedimiento && ` · 🔧 ${formatDate(paciente.fecha_procedimiento)}`}
+            Protocolo: <strong>{protocoloInfo.nombre}</strong>
+            {paciente.fecha_procedimiento && ` · ${formatDate(paciente.fecha_procedimiento)}`}
           </div>
         </div>
       </div>
@@ -238,17 +239,17 @@ export default function TabNutricionV2({ paciente, usuario }) {
         <>
           <div style={cardStyle()}>
             <div style={cardHeader()}>
-              <h3 style={{ margin: 0, color: B.navy, fontSize: 15 }}>
-                🟠 Fases Bariátricas
+              <h3 style={{ margin: 0, color: B.navy, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="git-branch" size={16} color={B.navy} /> Fases Bariátricas
               </h3>
               <button style={btnPrimary(protocoloInfo.color)} onClick={() => setVista('timeline')}>
-                {faseActual ? '🗂 Ver timeline' : '+ Iniciar fases'}
+                {faseActual ? 'Ver timeline' : '+ Iniciar fases'}
               </button>
             </div>
 
             {!faseActual && historiaFases.length === 0 && (
               <div style={emptyStateBox()}>
-                <div style={{ fontSize: 44, marginBottom: 10 }}>🥗</div>
+                <span style={{ display: 'inline-flex', width: 48, height: 48, borderRadius: 14, background: '#EFF6FC', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}><Icon name="salad" size={22} color={B.blue} /></span>
                 <h4 style={{ color: B.navy, marginBottom: 6, fontSize: 14 }}>Sin fases iniciadas aún</h4>
                 <p style={{ color: B.gray, fontSize: 12, marginBottom: 14 }}>
                   Asigna la primera fase del protocolo de {protocoloInfo.nombre} al paciente.
@@ -271,7 +272,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
                       {faseActual.fases_nutricionales?.nombre || 'Fase'}
                     </div>
                     <div style={{ fontSize: 11, color: B.gray, marginTop: 4 }}>
-                      📅 Inicio: {formatDate(faseActual.fecha_inicio)} · Día {diasDesde(faseActual.fecha_inicio)} de la fase
+                      Inicio: {formatDate(faseActual.fecha_inicio)} · Día {diasDesde(faseActual.fecha_inicio)} de la fase
                     </div>
                   </div>
                   {historiaFases.length > 1 && (
@@ -292,17 +293,17 @@ export default function TabNutricionV2({ paciente, usuario }) {
       {/* ═══════ PLAN SMAE (todos los protocolos) ═══════ */}
       <div style={cardStyle()}>
         <div style={cardHeader()}>
-          <h3 style={{ margin: 0, color: B.navy, fontSize: 15 }}>
-            🍱 Plan SMAE {protocoloInfo.tieneFases && '(post-fases)'}
+          <h3 style={{ margin: 0, color: B.navy, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon name="utensils" size={16} color={B.navy} /> Plan SMAE {protocoloInfo.tieneFases && '(post-fases)'}
           </h3>
           <button style={btnPrimary(B.green)} onClick={() => setVista('editor_smae')}>
-            {planSmae ? '✏️ Editar plan' : '+ Crear plan SMAE'}
+            {planSmae ? 'Editar plan' : '+ Crear plan SMAE'}
           </button>
         </div>
 
         {!planSmae ? (
           <div style={emptyStateBox()}>
-            <div style={{ fontSize: 44, marginBottom: 10 }}>🍱</div>
+            <span style={{ display: 'inline-flex', width: 48, height: 48, borderRadius: 14, background: '#EFF6FC', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}><Icon name="utensils" size={22} color={B.blue} /></span>
             <h4 style={{ color: B.navy, marginBottom: 6, fontSize: 14 }}>Sin plan SMAE activo</h4>
             <p style={{ color: B.gray, fontSize: 12, marginBottom: 14 }}>
               Crea un plan personalizado con porciones por tiempo de comida.
@@ -323,7 +324,7 @@ export default function TabNutricionV2({ paciente, usuario }) {
                   {planSmae.nombre}
                 </div>
                 <div style={{ fontSize: 11, color: B.gray, marginTop: 4 }}>
-                  🎯 {planSmae.objetivo || '—'} · {planSmae.kcal_objetivo || '—'} kcal · Desde {formatDate(planSmae.fecha_inicio)}
+                  {planSmae.objetivo || '—'} · {planSmae.kcal_objetivo || '—'} kcal · Desde {formatDate(planSmae.fecha_inicio)}
                 </div>
               </div>
               <span style={{
@@ -339,28 +340,28 @@ export default function TabNutricionV2({ paciente, usuario }) {
 
       {/* ═══════ Información clínica común ═══════ */}
       <div style={cardStyle()}>
-        <h3 style={{ margin: '0 0 12px', color: B.navy, fontSize: 15 }}>📋 Información clínica</h3>
+        <h3 style={{ margin: '0 0 12px', color: B.navy, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}><Icon name="clipboard-list" size={16} color={B.navy} /> Información clínica</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-          <InfoTile titulo="Alergias" valor="—" color={B.amber} icon="⚠️" />
-          <InfoTile titulo="Suplementos" valor="—" color={B.blue} icon="💊" />
-          <InfoTile titulo="Diagnóstico" valor="—" color={B.green} icon="📋" />
-          <InfoTile titulo="Próxima consulta" valor="Sin agendar" color={B.purple} icon="📅" />
+          <InfoTile titulo="Alergias" valor="—" color={B.amber} icon="alert-triangle" />
+          <InfoTile titulo="Suplementos" valor="—" color={B.blue} icon="pill" />
+          <InfoTile titulo="Diagnóstico" valor="—" color={B.green} icon="clipboard-list" />
+          <InfoTile titulo="Próxima consulta" valor="Sin agendar" color={B.purple} icon="calendar-days" />
         </div>
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${B.grayLt}`, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={btnSecondaryActivo(B.blue)} onClick={() => setVista('anamnesis')}>
-            📋 Anamnesis nutricional
+          <button style={btnSecondaryActivo(B.blue)} onClick={() => setVista('anamnesis')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="clipboard-list" size={14} /> Anamnesis nutricional
           </button>
-          <button style={btnSecondaryActivo(B.green)} onClick={() => setVista('nueva_consulta')}>
-            🩺 Nueva consulta
+          <button style={btnSecondaryActivo(B.green)} onClick={() => setVista('nueva_consulta')} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <Icon name="stethoscope" size={14} /> Nueva consulta
           </button>
           <button style={btnSecondaryActivo(B.purple)} onClick={() => setVista('historial_consultas')}>
-            📚 Historial ({consultasCount})
+            Historial ({consultasCount})
           </button>
           <button style={btnSecondaryActivo(B.orange)} onClick={generarPDFPlan} disabled={!planSmae} title={planSmae ? 'Generar PDF del Plan SMAE' : 'Crea un plan SMAE primero'}>
-            📄 PDF Plan SMAE
+            PDF Plan SMAE
           </button>
           <button style={btnSecondaryActivo(B.teal)} onClick={() => setVista('intercambios')}>
-            🔄 Plan por Intercambios
+            Plan por Intercambios
           </button>
         </div>
       </div>
@@ -392,8 +393,8 @@ function InfoTile({ titulo, valor, color, icon }) {
       padding: '10px 12px',
       borderTop: `3px solid ${color}`,
     }}>
-      <div style={{ fontSize: 10, color: B.gray, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-        {icon} {titulo}
+      <div style={{ fontSize: 10, color: B.gray, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Icon name={icon} size={13} color={color} /> {titulo}
       </div>
       <div style={{ fontSize: 13, color: B.navy, fontWeight: 700, marginTop: 4 }}>
         {valor}
@@ -473,9 +474,9 @@ function HistorialConsultasNutricion({ paciente, consultas, onVolver, onVerConsu
   return (
     <div style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
-        <button onClick={onVolver} style={{ padding: '8px 14px', background: B.white, color: B.navy, border: `1.5px solid ${B.grayMd}`, borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
+        <button onClick={onVolver} style={{ padding: '8px 14px', background: B.white, color: B.navy, border: `1px solid ${B.grayMd}`, borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Volver</button>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: B.navy, margin: 0 }}>📚 Historial de Consultas Nutricionales</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: B.navy, margin: 0 }}>Historial de Consultas Nutricionales</h2>
           <p style={{ fontSize: 12, color: B.gray, margin: '2px 0 0' }}>
             {paciente.nombre} {paciente.apellido || ''} · {consultas.length} consultas
           </p>
@@ -484,7 +485,7 @@ function HistorialConsultasNutricion({ paciente, consultas, onVolver, onVerConsu
 
       {consultas.length === 0 ? (
         <div style={{ background: 'white', border: `1px solid ${B.grayMd}`, borderRadius: 12, padding: 60, textAlign: 'center' }}>
-          <div style={{ fontSize: 44, marginBottom: 10 }}>📋</div>
+          <span style={{ display: 'inline-flex', width: 48, height: 48, borderRadius: 14, background: '#EFF6FC', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}><Icon name="clipboard-list" size={22} color={B.blue} /></span>
           <h4 style={{ color: B.navy, marginBottom: 6, fontSize: 14 }}>Sin consultas registradas</h4>
           <p style={{ color: B.gray, fontSize: 12 }}>Las consultas nutricionales aparecerán aquí cuando las registres.</p>
         </div>
@@ -507,22 +508,22 @@ function HistorialConsultasNutricion({ paciente, consultas, onVolver, onVerConsu
                       padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700,
                       textTransform: 'uppercase', letterSpacing: 0.3,
                     }}>
-                      {c.tipo === 'anamnesis' ? '📋 Anamnesis' : '🩺 Seguimiento'}
+                      {c.tipo === 'anamnesis' ? 'Anamnesis' : 'Seguimiento'}
                     </span>
                     <span style={{ fontSize: 11, color: B.gray }}>
-                      📅 {formatDate(c.fecha)}
+                      {formatDate(c.fecha)}
                     </span>
                   </div>
                   {c.peso_kg && (
                     <div style={{ fontSize: 12, color: B.navy }}>
-                      ⚖️ {c.peso_kg} kg
+                      {c.peso_kg} kg
                       {c.imc && ` · IMC ${c.imc}`}
                       {c.grasa_pct && ` · ${c.grasa_pct}% grasa`}
                     </div>
                   )}
                   {c.diagnostico && (
                     <div style={{ fontSize: 11, color: B.gray, marginTop: 4 }}>
-                      🩺 {c.diagnostico.substring(0, 100)}{c.diagnostico.length > 100 ? '...' : ''}
+                      {c.diagnostico.substring(0, 100)}{c.diagnostico.length > 100 ? '...' : ''}
                     </div>
                   )}
                 </div>
@@ -539,7 +540,7 @@ const btnSecondaryActivo = (color) => ({
   padding: '8px 14px',
   background: 'white',
   color: color,
-  border: `1.5px solid ${color}`,
+  border: `1px solid ${color}`,
   borderRadius: 8,
   fontWeight: 700,
   fontSize: 12,
