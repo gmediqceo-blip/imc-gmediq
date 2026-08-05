@@ -1,0 +1,48 @@
+/* Alias de compatibilidad del UI kit v2.
+   Los valores ya viven en tokens/v2.css (base oficial del sistema); este archivo
+   sólo mantiene los nombres --v2-* que usan los JSX del kit, y las clases de
+   utilidad de la propuesta. */
+:root{
+  --v2-canvas:var(--canvas);
+  --v2-surface:var(--surface);
+  --v2-surface-2:var(--surface-2);
+  --v2-line:var(--line);
+  --v2-line-soft:var(--line-soft);
+  --v2-ink:var(--ink);
+  --v2-ink-2:var(--ink-2);
+  --v2-ink-3:var(--ink-3);
+  --v2-accent:var(--accent);
+  --v2-accent-deep:var(--accent-deep);
+  --v2-accent-wash:var(--accent-wash);
+  --v2-r-control:var(--r-control);
+  --v2-r-card:var(--r-card);
+  --v2-r-hero:var(--r-hero);
+  --v2-sh-1:var(--sh-1);
+  --v2-sh-2:var(--sh-2);
+  --v2-sh-nav:var(--sh-nav);
+  --v2-sh-btn:var(--sh-btn);
+}
+.v2 *{box-sizing:border-box}
+.v2{font-family:var(--font-ui);color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.45}
+.v2 h1,.v2 h2,.v2 h3,.v2 p{margin:0}
+.v2-eyebrow{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.v2-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-1)}
+.v2-input{height:var(--h-control);padding:0 12px 0 38px;border:1px solid var(--line);border-radius:var(--r-control);background:var(--surface);font-family:inherit;font-size:13.5px;color:var(--ink);outline:none;width:100%}
+.v2-input::placeholder{color:var(--ink-3)}
+.v2-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(30,124,181,.12)}
+.v2-row{transition:background var(--dur-ui) var(--ease-ui)}
+.v2-row:hover{background:var(--surface-2)}
+.v2-row .v2-actions{opacity:0;transition:opacity var(--dur-ui) var(--ease-ui)}
+.v2-row:hover .v2-actions{opacity:1}
+.v2-iconbtn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink-2);cursor:pointer;transition:all var(--dur-ui) var(--ease-ui)}
+.v2-iconbtn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-wash)}
+.v2-btn{height:var(--h-control);padding:0 18px;display:inline-flex;align-items:center;gap:8px;border:none;border-radius:var(--r-control);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:all var(--dur-ui) var(--ease-ui)}
+.v2-btn-primary{background:linear-gradient(180deg,#14355F,var(--ink));color:#fff;box-shadow:var(--sh-btn)}
+.v2-btn-primary:hover{filter:brightness(1.12)}
+.v2-btn-ghost{background:var(--surface);color:var(--ink-2);border:1px solid var(--line)}
+.v2-btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.v2-chip{height:var(--h-chip);padding:0 13px;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all var(--dur-ui) var(--ease-ui)}
+.v2-chip:hover{border-color:#CFDCEA}
+.v2-chip[data-on="1"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.v2-track{height:4px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.v2-track span{display:block;height:100%;border-radius:999px;background:var(--accent)}

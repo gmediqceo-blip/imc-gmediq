@@ -1,0 +1,81 @@
+/* IMC — espaciado, radios, sombras y bordes. Valores literales del código:
+   no se redondean a una retícula de 4/8 px porque el producto usa 13, 9, 1.5px, etc. */
+:root{
+  /* Espaciado */
+  --sp-2:2px;
+  --sp-4:4px;
+  --sp-6:6px;
+  --sp-8:8px;
+  --sp-10:10px;
+  --sp-12:12px;
+  --sp-13:13px;   /* separación vertical entre campos (FormFields.js) */
+  --sp-14:14px;
+  --sp-16:16px;
+  --sp-18:18px;
+  --sp-20:20px;
+  --sp-22:22px;
+  --sp-24:24px;   /* padding de página en escritorio */
+  --sp-28:28px;
+  --sp-32:32px;
+  --sp-40:40px;
+  --sp-60:60px;   /* estados vacíos y "Cargando..." */
+
+  /* Paddings compuestos recurrentes */
+  --pad-input:8px 10px;
+  --pad-input-lg:11px 14px;      /* login */
+  --pad-btn:9px 20px;
+  --pad-btn-primary:10px 22px;
+  --pad-btn-sm:6px 12px;
+  --pad-row:14px 16px;
+  --pad-card:18px 18px;
+  --pad-modal:20px 22px;
+  --pad-page:24px;
+  --pad-page-mobile:12px;
+
+  /* Radios */
+  --r-4:4px;
+  --r-5:5px;
+  --r-6:6px;      /* input compacto, botón pequeño */
+  --r-7:7px;      /* input e input-botón del panel */
+  --r-8:8px;      /* botón, alerta, input de login */
+  --r-10:10px;    /* tarjeta de lista */
+  --r-12:12px;    /* tabla, tile */
+  --r-14:14px;    /* modal, tarjeta del paciente */
+  --r-16:16px;    /* tarjeta de login, modal grande */
+  --r-pill:30px;  /* toast */
+  --r-round:50%;
+
+  /* Bordes */
+  --bw-hair:1px;
+  --bw-field:1.5px;    /* borde canónico de input y tarjeta */
+  --bw-thick:2px;      /* botón secundario, borde inferior de barra de stats */
+  --bw-accent:3px;     /* borde superior de la tarjeta de ejercicio, subrayado de stepper */
+  --bw-rail:4px;       /* riel izquierdo de SectionTitle / alertas / StatTile */
+
+  /* Sombras */
+  --shadow-none:none;
+  --shadow-modal:0 20px 60px rgba(0,0,0,.3);
+  --shadow-modal-strong:0 20px 60px rgba(0,0,0,.4);
+  --shadow-toast:0 10px 40px rgba(0,0,0,.2);
+  --shadow-toast-top:0 6px 20px rgba(0,0,0,.25);
+
+  /* Alturas fijas */
+  --h-navbar:56px;
+  --h-avatar:34px;
+  --h-avatar-row:40px;
+
+  /* Anchos de contenedor */
+  --w-login:420px;
+  --w-modal-sm:480px;
+  --w-modal:540px;
+  --w-modal-lg:720px;
+  --w-paciente:640px;   /* app del paciente */
+  --w-agenda:900px;
+  --w-banco:1000px;
+  --w-panel:1400px;
+
+  /* Movimiento: el producto sólo usa transiciones cortas de 0.15s */
+  --dur-fast:.15s; /* @kind other */
+  --ease:ease; /* @kind other */
+  --transition-ui:all .15s ease; /* @kind other */
+}

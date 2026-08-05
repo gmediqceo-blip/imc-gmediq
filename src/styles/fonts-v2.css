@@ -1,0 +1,7 @@
+/* IMC — tipografía de marca, según el Manual de Marca (pág. "Tipografía").
+   Principal:  Poppins Bold  → disponible en Google Fonts, se carga aquí.
+   Secundaria: All Round Gothic Bold → fuente comercial (Fontfabric), NO incluida en el
+   manual ni en el repo. Se sustituye por Quicksand (geométrica redondeada, el match libre
+   más cercano). Ver readme.md → SUSTITUCIONES. Reemplazar por la real cuando se licencie. */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap");

@@ -1,0 +1,47 @@
+/* IMC — tipografía.
+   Marca (Manual de Marca): Poppins como principal y All Round Gothic Bold como secundaria
+   —esta última sustituida por Quicksand mientras no haya licencia.
+   Producto actual: el código de imc-gmediq declara 'Segoe UI' en línea en cada pantalla;
+   ese valor se conserva en --font-ui-legacy para documentar la migración pendiente. */
+:root{
+  --font-display:'Poppins', -apple-system, BlinkMacSystemFont, Arial, sans-serif;   /* títulos, cifras, botones */
+  --font-ui:'Poppins', -apple-system, BlinkMacSystemFont, Arial, sans-serif;        /* interfaz y cuerpo */
+  --font-brand-alt:'Quicksand', 'Poppins', Arial, sans-serif;                       /* acentos de marca; sustituye All Round Gothic */
+  --font-ui-legacy:'Segoe UI', Arial, sans-serif;                                   /* lo que hoy renderiza la app */
+  --font-mono:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;             /* hora de cita, bpm */
+
+  /* Escala real usada en el producto (px) */
+  --fs-9:9px;      /* micro-píldoras: módulos, nivel, entorno */
+  --fs-10:10px;    /* LABEL de campo, metadatos */
+  --fs-11:11px;    /* subtítulos, rol, hints */
+  --fs-12:12px;    /* botones secundarios, texto denso */
+  --fs-13:13px;    /* cuerpo por defecto: inputs, botones, filas */
+  --fs-14:14px;    /* input de login, nombre de paciente */
+  --fs-15:15px;    /* botón de login, título de modal */
+  --fs-16:16px;    /* título de barra (Agenda, Nuevo paciente) */
+  --fs-18:18px;    /* h2 de sección, hora de cita */
+  --fs-20:20px;    /* número de stat en barra */
+  --fs-22:22px;    /* h2 "Gestión de Pacientes", peso actual */
+  --fs-24:24px;    /* saludo al paciente, número de StatTile, score */
+  --fs-32:32px;    /* titular de marca en piezas de comunicación */
+  --fs-48:48px;    /* titular grande sobre navy */
+
+  /* Pesos: la interfaz usa 400/600/700/800; la marca titula en 700 (Poppins Bold) */
+  --fw-regular:400; /* @kind other */
+  --fw-semibold:600; /* @kind other */
+  --fw-bold:700; /* @kind other */
+  --fw-black:800; /* @kind other */
+
+  /* Interlineado */
+  --lh-tight:1.3; /* @kind other */
+  --lh-body:1.5; /* @kind other */
+  --lh-relaxed:1.6; /* @kind other */
+
+  /* Tracking de las mayúsculas (etiquetas y píldoras) */
+  --ls-label:1px;      /* LABEL de campo */
+  --ls-section:1.5px;  /* SectionTitle */
+  --ls-pill:.3px;      /* píldoras de estado */
+}
+
+/* Etiqueta de campo: el patrón tipográfico más repetido del sistema */
+.imc-label{display:block;font-size:var(--fs-10);font-weight:var(--fw-bold);color:var(--text-label);text-transform:uppercase;letter-spacing:var(--ls-label);margin-bottom:4px}

@@ -1,0 +1,49 @@
+/* IMC — capa "clínico premium" (v2). Aprobada por el equipo el 04/08/2026 a partir del
+   rediseño de ui_kits/panel_clinico_v2, ui_kits/app_paciente_v2 e ui_kits/impresos_v2.
+   Es la base oficial para interfaz nueva; los tokens de colors.css/spacing.css siguen
+   documentando el producto en producción hasta que se migre.
+
+   Qué cambia respecto a la capa heredada:
+   · las superficies se separan por elevación y línea de 1px, no por borde de 1.5px;
+   · el lienzo deja de ser gris neutro y toma un tinte azul de marca;
+   · la tinta tiene tres niveles en vez de navy + gris;
+   · los radios suben (10 / 14 / 18) y las sombras son cortas y de tinte navy. */
+:root{
+  /* Superficies */
+  --canvas:#F5F8FC;          /* fondo de aplicación */
+  --surface:#FFFFFF;         /* tarjeta, tabla, panel */
+  --surface-2:#FAFCFE;       /* fila al pasar el cursor, cabecera de tabla, tile interno */
+  --line:#E6EDF6;            /* borde de tarjeta y separador principal */
+  --line-soft:#EFF4F9;       /* separador entre filas, riel de barra de progreso */
+
+  /* Tinta */
+  --ink:#0B1F3B;             /* titular y dato principal — Azul Oscuro IMC */
+  --ink-2:#46596F;           /* texto de apoyo y valor secundario */
+  --ink-3:#7C8DA1;           /* etiqueta, unidad, texto deshabilitado */
+
+  /* Acento */
+  --accent:#1E7CB5;          /* Azul Claro IMC: foco, línea de gráfico, icono activo */
+  --accent-deep:#14608F;     /* texto sobre lavado de acento */
+  --accent-wash:#EFF6FC;     /* fondo de selección y de píldora informativa */
+
+  /* Radios */
+  --r-control:10px;          /* input, botón, chip cuadrado */
+  --r-card:14px;             /* tarjeta y tabla */
+  --r-hero:18px;             /* cabecera de ficha y bloques destacados */
+
+  /* Elevación: sombras cortas, tintadas de navy, nunca negras */
+  --sh-1:0 1px 2px rgba(11,31,59,.05);
+  --sh-2:0 1px 2px rgba(11,31,59,.04), 0 14px 30px -18px rgba(11,31,59,.22);
+  --sh-nav:0 18px 40px -24px rgba(11,31,59,.55);
+  --sh-btn:0 8px 18px -10px rgba(11,31,59,.55);
+
+  /* Alturas de control (táctil mínimo 44px en la app del paciente) */
+  --h-control:40px;
+  --h-control-lg:46px;
+  --h-chip:34px;
+  --h-touch:44px;
+
+  /* Movimiento */
+  --dur-ui:.14s; /* @kind other */
+  --ease-ui:ease; /* @kind other */
+}

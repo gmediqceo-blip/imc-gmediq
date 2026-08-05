@@ -1,0 +1,64 @@
+/* IMC — paleta base, tomada de la constante `B` que se repite en todo el código
+   (src/pages/Dashboard.js, src/pages/Login.js, src/components/*.js) */
+:root{
+  /* Base */
+  --imc-navy:#0B1F3B;
+  --imc-navy-2:#123059;        /* segundo stop del degradé del header del paciente */
+  --imc-blue:#1E7CB5;
+  --imc-teal:#4B647A;
+  --imc-gray:#6E6E70;
+  --imc-gray-lt:#F4F6F8;
+  --imc-gray-md:#DDE3EA;
+  --imc-white:#FFFFFF;
+  --imc-muted:#9AA5B1;         /* texto tenue / estado deshabilitado */
+
+  /* Semánticos de estado clínico */
+  --imc-green:#1A7A4A;
+  --imc-red:#B02020;
+  --imc-orange:#C25A00;
+  --imc-amber:#F59E0B;
+  --imc-gold:#C9A86A;
+  --imc-purple:#7C3AED;
+  --imc-purple-alt:#7B2D8B;    /* aparatología / respiratorio en Agenda y Banco */
+  --imc-whatsapp:#25D366;
+
+  /* Fondos tenues de alertas y píldoras (valores literales del código) */
+  --imc-green-bg:#E6F5EE;
+  --imc-red-bg:#FEF2F2;
+  --imc-red-bg-2:#FFEBEB;
+  --imc-red-border:#FCA5A5;
+  --imc-amber-bg:#FEF3C7;
+  --imc-orange-bg:#FFF0E0;
+  --imc-neutral-bg:#E5E7EB;
+
+  /* Score sobre navy (DashboardPaciente) */
+  --imc-score-good:#4ADE80;
+  --imc-score-mid:#FBBF24;
+  --imc-score-bad:#F87171;
+
+  /* Roles del equipo (Dashboard.js: rolColor) */
+  --imc-rol-admin:var(--imc-navy);
+  --imc-rol-fisioterapeuta:var(--imc-blue);
+  --imc-rol-medico:var(--imc-teal);
+  --imc-rol-nutricionista:var(--imc-green);
+  --imc-rol-secretaria:var(--imc-orange);
+  --imc-rol-cosmetologa:var(--imc-gold);
+
+  /* Alias semánticos */
+  --text-strong:var(--imc-navy);
+  --text-body:var(--imc-gray);
+  --text-label:var(--imc-teal);
+  --text-faint:var(--imc-muted);
+  --text-on-navy:#FFFFFF;
+  --text-on-navy-soft:rgba(255,255,255,.7);
+  --text-on-navy-faint:rgba(255,255,255,.5);
+  --surface-app:var(--imc-gray-lt);
+  --surface-card:var(--imc-white);
+  --surface-sunken:var(--imc-gray-lt);
+  --surface-chrome:var(--imc-navy);
+  --border-default:var(--imc-gray-md);
+  --border-strong:var(--imc-gray-md);
+  --accent:var(--imc-blue);
+  --accent-strong:var(--imc-navy);
+  --scrim:rgba(11,31,59,.75);
+}

@@ -1,0 +1,7 @@
+/* IMC — reset mínimo. El producto no tiene hoja de estilos (CRA sin CSS): todo es inline.
+   Estas reglas reproducen la herencia que el código asume, con la tipografía de marca. */
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-ui);font-size:var(--fs-13);color:var(--text-strong);background:var(--surface-app);-webkit-font-smoothing:antialiased}
+input,select,textarea,button{font-family:inherit}
+a{color:var(--imc-blue);text-decoration:underline}
+a:hover{color:var(--imc-navy)}
