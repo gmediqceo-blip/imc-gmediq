@@ -1537,7 +1537,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
     *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     body{font-family:'Poppins','Segoe UI',Arial,sans-serif;color:#0B1F3B;background:#EEF2F7;font-variant-numeric:tabular-nums;padding:14px;}
-    .page{background:white;max-width:1080px;margin:0 auto;border-radius:8px;box-shadow:0 8px 40px rgba(11,31,59,.14);display:grid;grid-template-columns:1fr 1fr;padding:11mm 12mm;box-sizing:border-box;}
+    .page{background:white;max-width:1080px;min-height:194mm;margin:0 auto;border-radius:8px;box-shadow:0 8px 40px rgba(11,31,59,.14);display:grid;grid-template-columns:1fr 1fr;align-items:stretch;padding:11mm 12mm;box-sizing:border-box;}
     .copy{padding:0 6mm;box-sizing:border-box;display:flex;flex-direction:column;}
     .copy:first-child{padding-left:0;border-right:.4mm dashed #B9C7D6;}
     .copy:last-child{padding-right:0;}
@@ -1569,13 +1569,13 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     .obs .t{font-size:10px;font-weight:700;letter-spacing:.06em;margin-bottom:1mm;color:#0B1F3B;}
     .obs b{font-weight:600;color:#0B1F3B;}
     .cita{margin-top:2.2mm;}
-    .firma{margin-top:auto;padding-top:10mm;text-align:center;}
+    .firma{margin-top:auto;padding-top:8mm;text-align:center;}
     .firma .ln{width:62mm;margin:0 auto 1.6mm;border-top:1px solid #0B1F3B;}
     .firma .nm{font-size:11px;font-weight:700;}
     .firma .dt{font-size:9.5px;color:#46596F;line-height:1.4;}
     .print-btn{position:fixed;bottom:20px;right:20px;background:#0B1F3B;color:white;border:none;padding:10px 22px;border-radius:25px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;}
     @page{size:A4 landscape;margin:6mm;}
-    @media print{body{background:white;padding:0;}.page{box-shadow:none;border-radius:0;max-width:100%;}.print-btn{display:none;}}
+    @media print{body{background:white;padding:0;}.page{box-shadow:none;border-radius:0;max-width:100%;min-height:0;height:100%;}.print-btn{display:none;}}
   </style></head><body>
   <div class="page">
     <div class="copy">
