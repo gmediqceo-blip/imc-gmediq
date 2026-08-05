@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import AccesoPacienteModal from './AccesoPacienteModal';
+import { Icon, EstadoDot, Inicial } from './v2/Icon';
 
 // ── PALETA IMC (consistente con tu sistema) ────────────────────────────
 const B = {
@@ -135,86 +136,90 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
   return (
     <div style={{ padding: typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 24, maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       
-      {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+      {/* HEADER V2 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 22, gap: 20, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: B.navy, margin: '0 0 4px' }}>
-            Gestión de Pacientes
-          </h2>
-          <p style={{ fontSize: 13, color: B.gray, margin: 0 }}>
-            {stats.total || 0} pacientes en gestión
+          <h1 style={{ fontSize: 25, fontWeight: 600, letterSpacing: '-.02em', color: 'var(--ink)', margin: '0 0 5px', fontFamily: 'Poppins, sans-serif' }}>
+            Pacientes
+          </h1>
+          <p style={{ fontSize: 13.5, color: 'var(--ink-2)', margin: 0, fontFamily: 'Poppins, sans-serif' }}>
+            {stats.total || 0} en gestión
             {stats.por_vencer > 0 && (
-              <span style={{ color: B.orange, fontWeight: 700, marginLeft: 8 }}>
-                · {stats.por_vencer} vencen pronto
+              <span style={{ color: '#B87503', fontWeight: 500, marginLeft: 6 }}>
+                · {stats.por_vencer} vencen este mes
               </span>
             )}
           </p>
         </div>
         <button
           onClick={() => setModalNuevo(true)}
-          style={btnPrimary()}
+          style={{
+            height: 40,
+            padding: '0 18px',
+            background: 'linear-gradient(180deg,#14355F,var(--ink))',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 10,
+            fontFamily: 'inherit',
+            fontSize: 13.5,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 8px 18px -10px rgba(11,31,59,.55)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
         >
-          + Nuevo paciente
+          <Icon name="plus" size={17} /> Nuevo paciente
         </button>
       </div>
 
-      {/* STATS CLICKEABLES COMO FILTROS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 20 }}>
-        <StatTile
-          activa={filtroEstado === 'todos'}
-          color={B.blue}
-          num={stats.total || 0}
-          label="🔵 Todos"
-          onClick={() => setFiltroEstado('todos')}
-        />
-        <StatTile
-          activa={filtroEstado === 'activo'}
-          color={B.green}
-          num={stats.activos || 0}
-          label="🟢 Activos"
-          onClick={() => setFiltroEstado('activo')}
-        />
-        <StatTile
-          activa={filtroEstado === 'por_vencer'}
-          color={B.amber}
-          num={stats.por_vencer || 0}
-          label="🟡 Por vencer"
-          onClick={() => setFiltroEstado('por_vencer')}
-        />
-        <StatTile
-          activa={filtroEstado === 'modo_lectura'}
-          color={B.orange}
-          num={stats.modo_lectura || 0}
-          label="🟠 Modo lectura"
-          onClick={() => setFiltroEstado('modo_lectura')}
-        />
-        <StatTile
-          activa={filtroEstado === 'suspendido'}
-          color={B.red}
-          num={stats.suspendidos || 0}
-          label="🔴 Suspendidos"
-          onClick={() => setFiltroEstado('suspendido')}
-        />
+      {/* KPIs V2 - 5 columnas con progress bars */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 16 }}>
+        <KpiCardV2 activa={filtroEstado === 'todos'} label="Todos los pacientes" num={stats.total || 0} total={stats.total || 1} tone="var(--accent)" onClick={() => setFiltroEstado('todos')} />
+        <KpiCardV2 activa={filtroEstado === 'activo'} label="Activos" num={stats.activos || 0} total={stats.total || 1} tone="#1A7A4A" onClick={() => setFiltroEstado('activo')} />
+        <KpiCardV2 activa={filtroEstado === 'por_vencer'} label="Por vencer" num={stats.por_vencer || 0} total={stats.total || 1} tone="#E0A62A" onClick={() => setFiltroEstado('por_vencer')} />
+        <KpiCardV2 activa={filtroEstado === 'modo_lectura'} label="Modo lectura" num={stats.modo_lectura || 0} total={stats.total || 1} tone="#C25A00" onClick={() => setFiltroEstado('modo_lectura')} />
+        <KpiCardV2 activa={filtroEstado === 'suspendido'} label="Suspendidos" num={stats.suspendidos || 0} total={stats.total || 1} tone="#B02020" onClick={() => setFiltroEstado('suspendido')} />
       </div>
 
-      {/* BARRA DE FILTROS */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input
-          value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
-          placeholder="🔍 Buscar por nombre, email o teléfono..."
-          style={inputStyle({ flex: 1, minWidth: 280 })}
-        />
-        <select
-          value={filtroModulo}
-          onChange={e => setFiltroModulo(e.target.value)}
-          style={inputStyle({})}
-        >
-          <option value="todos">Todos los módulos</option>
-          <option value="nutri">🥗 Con Nutrición</option>
-          <option value="fisio">🏃 Con Fisioterapia</option>
-          <option value="aparat">⚡ Con Aparatología</option>
-        </select>
+      {/* Filtros V2 con search e iconos */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 280, maxWidth: 420 }}>
+          <span style={{ position: 'absolute', left: 13, top: 11, color: 'var(--ink-3)' }}>
+            <Icon name="search" size={17} />
+          </span>
+          <input
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, email o teléfono"
+            style={{
+              width: '100%',
+              height: 40,
+              padding: '0 12px 0 38px',
+              border: '1px solid var(--line)',
+              borderRadius: 10,
+              background: 'var(--surface)',
+              fontFamily: 'inherit',
+              fontSize: 13.5,
+              color: 'var(--ink)',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 7, marginLeft: 'auto', flexWrap: 'wrap' }}>
+          <ChipV2 on={filtroModulo === 'todos'} onClick={() => setFiltroModulo('todos')}>Todos los módulos</ChipV2>
+          <ChipV2 on={filtroModulo === 'nutri'} onClick={() => setFiltroModulo('nutri')}>
+            <Icon name="utensils" size={14} /> Nutrición
+          </ChipV2>
+          <ChipV2 on={filtroModulo === 'fisio'} onClick={() => setFiltroModulo('fisio')}>
+            <Icon name="activity" size={14} /> Fisioterapia
+          </ChipV2>
+          <ChipV2 on={filtroModulo === 'aparat'} onClick={() => setFiltroModulo('aparat')}>
+            <Icon name="zap" size={14} /> Aparatología
+          </ChipV2>
+        </div>
       </div>
 
       {/* TABLA DE PACIENTES */}
@@ -232,7 +237,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
           </p>
         </div>
       ) : (
-        <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden', width: '100%' }}>
+        <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--line)', boxShadow: 'var(--sh-2)', overflow: 'hidden', width: '100%' }}>
           {/* Header de tabla */}
           <div style={tableHeader()}>
             <div></div>
@@ -318,26 +323,56 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// SUBCOMPONENTE: Stat Tile (estadística clickeable como filtro)
+// SUBCOMPONENTE V2: KpiCard con progress bar y estilo clínico premium
 // ════════════════════════════════════════════════════════════════════════
-function StatTile({ activa, color, num, label, onClick }) {
+function KpiCardV2({ label, num, total, activa, onClick, tone }) {
+  const pct = total ? Math.round((num / total) * 100) : 0;
   return (
-    <div
-      onClick={onClick}
+    <button onClick={onClick}
       style={{
-        background: activa ? color + '15' : B.white,
-        border: `1.5px solid ${activa ? color : B.grayMd}`,
-        borderLeft: `4px solid ${color}`,
-        borderRadius: 10,
-        padding: 14,
+        textAlign: 'left',
+        padding: '15px 16px 14px',
         cursor: 'pointer',
-        transition: 'all 0.15s',
-        boxShadow: activa ? `0 4px 12px ${color}30` : 'none',
-      }}
-    >
-      <div style={{ fontSize: 24, fontWeight: 800, color: B.navy, lineHeight: 1 }}>{num}</div>
-      <div style={{ fontSize: 11, color: B.gray, fontWeight: 600, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.3 }}>{label}</div>
-    </div>
+        fontFamily: 'inherit',
+        background: activa ? 'linear-gradient(180deg,#14355F,#0B1F3B)' : 'var(--surface)',
+        border: activa ? '1px solid #0B1F3B' : '1px solid var(--line)',
+        borderRadius: 14,
+        boxShadow: activa ? 'var(--sh-2)' : 'var(--sh-1)',
+        transition: 'all .16s ease',
+      }}>
+      <p style={{ fontSize: 12, fontWeight: 500, color: activa ? 'rgba(255,255,255,.66)' : 'var(--ink-3)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</p>
+      <p style={{ fontSize: 27, fontWeight: 600, letterSpacing: '-.02em', lineHeight: 1, color: activa ? '#fff' : 'var(--ink)', margin: 0 }}>{num}</p>
+      <div style={{ height: 4, borderRadius: 999, marginTop: 12, background: activa ? 'rgba(255,255,255,.16)' : 'var(--line-soft)', overflow: 'hidden' }}>
+        <span style={{ display: 'block', height: '100%', width: pct + '%', borderRadius: 999, background: activa ? '#7FC0EC' : tone }} />
+      </div>
+    </button>
+  );
+}
+
+// ── Chip V2 (para filtros de módulos) ─────────────────────────────────
+function ChipV2({ on, onClick, children }) {
+  return (
+    <button onClick={onClick}
+      style={{
+        height: 34,
+        padding: '0 13px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 7,
+        border: on ? '1px solid var(--ink)' : '1px solid var(--line)',
+        borderRadius: 999,
+        background: on ? 'var(--ink)' : 'var(--surface)',
+        fontFamily: 'inherit',
+        fontSize: 12.5,
+        fontWeight: 500,
+        color: on ? '#fff' : 'var(--ink-2)',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        transition: 'all .14s ease',
+      }}>
+      {children}
+    </button>
   );
 }
 
@@ -408,9 +443,9 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, on
             
             {/* Módulos pequeños */}
             <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-              <ModuleDot active={paciente.incluye_nutricion}    color={B.green}  emoji="🥗" />
-              <ModuleDot active={paciente.incluye_fisioterapia} color={B.orange} emoji="🏃" />
-              <ModuleDot active={paciente.incluye_aparatologia} color={B.purple} emoji="⚡" />
+              <ModuleDot active={paciente.incluye_nutricion}    color="#1A7A4A"  iconName="utensils" />
+              <ModuleDot active={paciente.incluye_fisioterapia} color="#C25A00"  iconName="activity" />
+              <ModuleDot active={paciente.incluye_aparatologia} color="#7C3AED"  iconName="zap" />
             </div>
           </div>
         </div>
@@ -435,15 +470,8 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, on
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       onClick={onAbrir}
     >
-      {/* Avatar */}
-      <div style={{
-        width: 40, height: 40, borderRadius: 20,
-        background: `linear-gradient(135deg, ${B.blue}, ${B.navy})`,
-        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontWeight: 800, fontSize: 14,
-      }}>
-        {inicial}
-      </div>
+      {/* Avatar V2 */}
+      <Inicial nombre={paciente.nombre} size={40} />
       
       {/* Info paciente */}
       <div>
@@ -475,9 +503,9 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, on
       
       {/* Módulos */}
       <div style={{ display: 'flex', gap: 6 }}>
-        <ModuleDot active={paciente.incluye_nutricion}    color={B.green}  emoji="🥗" />
-        <ModuleDot active={paciente.incluye_fisioterapia} color={B.orange} emoji="🏃" />
-        <ModuleDot active={paciente.incluye_aparatologia} color={B.purple} emoji="⚡" />
+        <ModuleDot active={paciente.incluye_nutricion}    color="#1A7A4A"  iconName="utensils" />
+        <ModuleDot active={paciente.incluye_fisioterapia} color="#C25A00"  iconName="activity" />
+        <ModuleDot active={paciente.incluye_aparatologia} color="#7C3AED"  iconName="zap" />
       </div>
       
       {/* Vence */}
@@ -498,53 +526,64 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, on
         )}
       </div>
       
-      {/* Estado */}
+      {/* Estado V2 con dot circular */}
       <div>
-        <span style={{
-          background: meta.bg,
-          color: meta.color,
-          padding: '4px 10px',
-          borderRadius: 12,
-          fontSize: 10,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: 0.3,
-          whiteSpace: 'nowrap',
-        }}>
-          {meta.icon} {meta.label}
-        </span>
+        <EstadoDot estado={paciente.programa_estado || 'pendiente_activacion'} />
       </div>
       
-      {/* Acciones */}
-      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-        <button onClick={onAcceso} style={btnIconSm()} title="Acceso a la app del paciente">🔑</button>
+      {/* Acciones V2 con iconos Lucide */}
+      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+        <button onClick={onAcceso} title="Acceso a la app del paciente" style={iconBtnV2()}>
+          <Icon name="key-round" size={15} />
+        </button>
         {paciente.programa_estado === 'por_vencer' || paciente.programa_estado === 'modo_lectura' ? (
-          <button onClick={onRenovar} style={btnIcon(B.amber)} title="Renovar programa del paciente">🔄 Renovar</button>
+          <button onClick={onRenovar} title="Renovar programa" style={iconBtnV2({ borderColor: '#F0D9A8', color: '#B87503', background: '#FFFBF2' })}>
+            <Icon name="refresh-cw" size={15} />
+          </button>
         ) : paciente.programa_estado === 'suspendido' ? (
-          <button onClick={onReactivar} style={btnIcon(B.green)} title="Reactivar programa suspendido">▶️ Reactivar</button>
+          <button onClick={onReactivar} title="Reactivar programa" style={iconBtnV2({ borderColor: '#BFE0CE', color: '#1A7A4A', background: '#F2FBF6' })}>
+            <Icon name="play" size={15} />
+          </button>
         ) : (
-          <>
-            <button onClick={onAbrir} style={btnIconSm()} title="Ver ficha del paciente">👁️</button>
-            <button onClick={onSuspender} style={btnIconSm()} title="Suspender programa del paciente">⏸️</button>
-          </>
+          <button onClick={onSuspender} title="Suspender programa" style={iconBtnV2()}>
+            <Icon name="pause" size={15} />
+          </button>
         )}
+        <button onClick={onAbrir} title="Abrir ficha clínica" style={iconBtnV2()}>
+          <Icon name="chevron-right" size={16} />
+        </button>
       </div>
     </div>
   );
 }
 
-function ModuleDot({ active, color, emoji }) {
+// Helper V2: botón icónico como el mockup
+const iconBtnV2 = (extra = {}) => ({
+  width: 32,
+  height: 32,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: '1px solid var(--line)',
+  borderRadius: 9,
+  background: 'var(--surface)',
+  color: 'var(--ink-2)',
+  cursor: 'pointer',
+  transition: 'all .14s ease',
+  fontFamily: 'inherit',
+  ...extra,
+});
+
+function ModuleDot({ active, color, emoji, iconName }) {
   return (
-    <div style={{
-      width: 26, height: 26, borderRadius: 6,
-      background: active ? color + '22' : B.grayLt,
-      color: active ? color : B.grayMd,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 13,
-      filter: active ? 'none' : 'grayscale(1) opacity(0.5)',
+    <span style={{
+      width: 30, height: 30, borderRadius: 9,
+      background: active ? color + '14' : 'var(--line-soft)',
+      color: active ? color : '#C3CEDC',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      {emoji}
-    </div>
+      <Icon name={iconName || 'utensils'} size={15} strokeWidth={active ? 1.9 : 1.6} />
+    </span>
   );
 }
 
