@@ -1575,7 +1575,7 @@ export function imprimirReceta(paciente, consulta, medicamentos) {
     .firma .dt{font-size:9.5px;color:#46596F;line-height:1.4;}
     .print-btn{position:fixed;bottom:20px;right:20px;background:#0B1F3B;color:white;border:none;padding:10px 22px;border-radius:25px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;}
     @page{size:A4 landscape;margin:6mm;}
-    @media print{body{background:white;padding:0;}.page{box-shadow:none;border-radius:0;max-width:100%;min-height:0;height:100%;}.print-btn{display:none;}}
+    @media print{html,body{height:100%;}body{background:white;padding:0;}.page{box-shadow:none;border-radius:0;max-width:100%;min-height:100%;height:100%;}.print-btn{display:none;}}
   </style></head><body>
   <div class="page">
     <div class="copy">
