@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Icon } from './v2/Icon';
 
-const B = {
-  navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
-  grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF',
-  green: '#1A7A4A', red: '#B02020', orange: '#C25A00',
-};
+// ═══════════════════════════════════════════════════════════════════════
+// Parametros.js — evolución de parámetros clínicos, capa visual v2.
+//
+// Lo que NO cambió: props, el merge de valoraciones + consultas médicas en
+// `todas`, chartData, getStats, negKeys, diffColor, y la tabla de evolución
+// completa con sus flechas ▲▼ de cambio contra el registro anterior. Se
+// mantiene recharts como motor de la gráfica.
+//
+// Cambia la presentación: tokens, Poppins, iconos Lucide en vez de emoji, y
+// tabular-nums en las cifras.
+// ═══════════════════════════════════════════════════════════════════════
+
+const VERDE = '#1A7A4A', ROJO = '#B02020', GRIS = '#7C8DA1';
 
 const PARAMETROS = [
   { key: 'peso', label: 'Peso (kg)', color: '#1E7CB5', normal: '50–90 kg' },
@@ -13,7 +22,7 @@ const PARAMETROS = [
   { key: 'pct_grasa', label: '% Grasa corporal', color: '#C25A00', normal: 'H:10–20% M:18–28%' },
   { key: 'masa_muscular', label: 'Masa muscular (kg)', color: '#1A7A4A', normal: '>32 kg' },
   { key: 'cintura', label: 'Cintura (cm)', color: '#B02020', normal: 'H:<94 M:<80' },
-  { key: 'cadera', label: 'Cadera (cm)', color: '#7B2D8B', normal: '—' },
+  { key: 'cadera', label: 'Cadera (cm)', color: '#7C3AED', normal: '—' },
   { key: 'fc_reposo', label: 'FC reposo (bpm)', color: '#1E7CB5', normal: '60–100' },
   { key: 'spo2', label: 'SpO2 (%)', color: '#1A7A4A', normal: '≥95%' },
   { key: 'pa_sistolica', label: 'PA sistólica (mmHg)', color: '#B02020', normal: '<120' },
@@ -25,9 +34,24 @@ const PARAMETROS = [
   { key: 'agua_corporal', label: 'Agua corporal (L)', color: '#1E7CB5', normal: '—' },
 ];
 
+const FUENTE = "'Poppins', system-ui, sans-serif";
 const fmtShort = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'short' }) : '';
 const fmtFull = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 const toF = v => v ? parseFloat(v) : null;
+
+const CARD = { background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--line)', boxShadow: 'var(--sh-1)' };
+const num = { fontVariantNumeric: 'tabular-nums' };
+
+// Chip de fuente (Fisioterapia / Médico), con icono Lucide en vez de emoji.
+function FuenteChip({ fuente }) {
+  const fisio = fuente === 'Fisioterapia';
+  const col = fisio ? 'var(--accent)' : '#4B647A';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 7, background: col + '14', color: col, fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap' }}>
+      <Icon name={fisio ? 'activity' : 'stethoscope'} size={12} color={col} /> {fuente}
+    </span>
+  );
+}
 
 export default function Parametros({ valoraciones, consultasMed, paciente }) {
   const [param1, setParam1] = useState('peso');
@@ -65,42 +89,48 @@ export default function Parametros({ valoraciones, consultasMed, paciente }) {
   const getStats = key => {
     const vals = todas.map(m => m[key]).filter(v => v !== null && v !== undefined && !isNaN(v));
     if (!vals.length) return null;
-    return { first: vals[0], last: vals[vals.length-1], diff: vals[vals.length-1] - vals[0], count: vals.length };
+    return { first: vals[0], last: vals[vals.length - 1], diff: vals[vals.length - 1] - vals[0], count: vals.length };
   };
 
   const stats1 = getStats(param1);
   const stats2 = param2 !== 'none' ? getStats(param2) : null;
 
-  const negKeys = ['peso','pct_grasa','cintura','masa_grasa','pa_sistolica','pa_diastolica','bmi'];
-  const diffColor = (diff, key) => !diff || diff === 0 ? B.gray : (negKeys.includes(key) ? (diff < 0 ? B.green : B.red) : (diff > 0 ? B.green : B.red));
+  const negKeys = ['peso', 'pct_grasa', 'cintura', 'masa_grasa', 'pa_sistolica', 'pa_diastolica', 'bmi'];
+  const diffColor = (diff, key) => !diff || diff === 0 ? GRIS : (negKeys.includes(key) ? (diff < 0 ? VERDE : ROJO) : (diff > 0 ? VERDE : ROJO));
 
   return (
-    <div>
-      <div style={{ background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}`, padding: '20px 22px', marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <p style={{ fontWeight: 800, fontSize: 13, color: B.navy, margin: 0, textTransform: 'uppercase', letterSpacing: 1 }}>📈 Control de Parámetros</p>
+    <div style={{ fontFamily: FUENTE, color: 'var(--ink)' }}>
+      <div style={{ ...CARD, padding: '20px 22px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+          <p style={{ fontWeight: 600, fontSize: 10.5, color: 'var(--ink-3)', margin: 0, textTransform: 'uppercase', letterSpacing: '.12em' }}>Control de parámetros</p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <span style={{ background: B.blue+'22', color: B.blue, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>🏃 {valoraciones.length} fisio</span>
-            <span style={{ background: B.teal+'22', color: B.teal, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>🩺 {(consultasMed||[]).length} médico</span>
+            <FuenteChip fuente="Fisioterapia" />
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, height: 22, padding: '0 9px', borderRadius: 7, background: '#4B647A14', color: '#4B647A', fontSize: 11, fontWeight: 500 }}>
+              <Icon name="stethoscope" size={12} color="#4B647A" /> {(consultasMed || []).length} médico
+            </span>
           </div>
         </div>
 
         {todas.length < 2 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: B.gray }}>
-            <p style={{ fontSize: 32, marginBottom: 10 }}>📊</p>
-            <p>Necesitas al menos 2 registros para ver la evolución.</p>
-            <p style={{ fontSize: 12, marginTop: 8 }}>Actualmente: {todas.length} registro{todas.length !== 1 ? 's' : ''} (fisioterapia + médico)</p>
+          <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+            <span style={{ display: 'inline-flex', width: 48, height: 48, borderRadius: 14, background: 'var(--accent-wash)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Icon name="line-chart" size={22} color="var(--accent)" />
+            </span>
+            <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Aún no hay evolución para graficar</p>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '6px 0 0' }}>
+              Se necesitan al menos 2 registros. Actualmente: {todas.length} registro{todas.length !== 1 ? 's' : ''} entre fisioterapia y médico.
+            </p>
           </div>
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-              {[{ val: param1, set: setParam1, label: 'Dato 1', color: p1?.color || B.blue, other: null },
-                { val: param2, set: setParam2, label: 'Dato 2 (comparar)', color: param2 !== 'none' ? (p2?.color || B.orange) : B.grayMd, other: param1 }
+              {[{ val: param1, set: setParam1, label: 'Dato 1', color: p1?.color || 'var(--accent)', other: null },
+                { val: param2, set: setParam2, label: 'Dato 2 (comparar)', color: param2 !== 'none' ? (p2?.color || '#C25A00') : 'var(--line)', other: param1 }
               ].map(({ val, set, label, color, other }) => (
                 <div key={label}>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{label}</label>
+                  <label style={{ display: 'block', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>{label}</label>
                   <select value={val} onChange={e => set(e.target.value)}
-                    style={{ width: '100%', padding: '9px 12px', border: `2px solid ${color}`, borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'inherit', color, fontWeight: 600 }}>
+                    style={{ width: '100%', height: 40, padding: '0 11px', border: '1.5px solid ' + color, borderRadius: 10, fontSize: 13, outline: 'none', fontFamily: 'inherit', color, fontWeight: 600, background: 'var(--surface)' }}>
                     {other !== null && <option value="none">— Sin comparar —</option>}
                     {PARAMETROS.filter(p => p.key !== other).map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
                   </select>
@@ -108,35 +138,38 @@ export default function Parametros({ valoraciones, consultasMed, paciente }) {
               ))}
             </div>
 
-            <div style={{ background: B.grayLt, borderRadius: 10, padding: '16px 8px' }}>
+            <div style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px 8px' }}>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={B.grayMd} />
-                  <XAxis dataKey="fecha" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: p1?.color || B.blue }} />
-                  {param2 !== 'none' && <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: p2?.color || B.orange }} />}
-                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} formatter={(v, n) => [v, PARAMETROS.find(p => p.key === n)?.label || n]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E6EDF6" />
+                  <XAxis dataKey="fecha" tick={{ fontSize: 11, fill: '#7C8DA1' }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 11, fill: p1?.color || '#1E7CB5' }} />
+                  {param2 !== 'none' && <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: p2?.color || '#C25A00' }} />}
+                  <Tooltip contentStyle={{ borderRadius: 10, fontSize: 12, border: '1px solid #E6EDF6', boxShadow: '0 8px 24px -12px rgba(11,31,59,.3)' }} formatter={(v, n) => [v, PARAMETROS.find(p => p.key === n)?.label || n]} />
                   <Legend formatter={n => PARAMETROS.find(p => p.key === n)?.label || n} />
-                  <Line yAxisId="left" type="monotone" dataKey={param1} stroke={p1?.color || B.blue} strokeWidth={2.5} dot={{ r: 5 }} connectNulls />
-                  {param2 !== 'none' && <Line yAxisId="right" type="monotone" dataKey={param2} stroke={p2?.color || B.orange} strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 5 }} connectNulls />}
+                  <Line yAxisId="left" type="monotone" dataKey={param1} stroke={p1?.color || '#1E7CB5'} strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />
+                  {param2 !== 'none' && <Line yAxisId="right" type="monotone" dataKey={param2} stroke={p2?.color || '#C25A00'} strokeWidth={2.5} strokeDasharray="5 3" dot={{ r: 4 }} activeDot={{ r: 6 }} connectNulls />}
                 </LineChart>
               </ResponsiveContainer>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: param2 !== 'none' ? '1fr 1fr' : '1fr', gap: 16, marginTop: 16 }}>
               {[{ stats: stats1, param: p1, key: param1 }, ...(param2 !== 'none' && stats2 ? [{ stats: stats2, param: p2, key: param2 }] : [])].map(({ stats, param, key }) => !stats ? null : (
-                <div key={key} style={{ background: B.grayLt, borderRadius: 10, padding: '14px 16px', borderTop: `3px solid ${param?.color || B.blue}` }}>
-                  <p style={{ fontWeight: 700, fontSize: 12, color: param?.color || B.blue, margin: '0 0 10px' }}>{param?.label}</p>
+                <div key={key} style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px' }}>
+                  <p style={{ fontWeight: 600, fontSize: 12.5, color: param?.color || 'var(--accent)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 3, background: param?.color || 'var(--accent)', flexShrink: 0 }} />
+                    {param?.label}
+                  </p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                     {[['Inicial', stats.first?.toFixed(1)], ['Actual', stats.last?.toFixed(1)],
                       ['Cambio', (stats.diff > 0 ? '+' : '') + stats.diff?.toFixed(1)], ['Registros', stats.count]].map(([l, v], i) => (
-                      <div key={l} style={{ background: B.white, borderRadius: 7, padding: '8px 10px', textAlign: 'center' }}>
-                        <p style={{ fontSize: 9, color: B.teal, fontWeight: 700, textTransform: 'uppercase', margin: '0 0 3px' }}>{l}</p>
-                        <p style={{ fontSize: 16, fontWeight: 800, color: i === 2 ? diffColor(stats.diff, key) : B.navy, margin: 0 }}>{v}</p>
+                      <div key={l} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 9, padding: '9px 10px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 9.5, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 4px' }}>{l}</p>
+                        <p style={{ fontSize: 16, fontWeight: 600, color: i === 2 ? diffColor(stats.diff, key) : 'var(--ink)', margin: 0, ...num }}>{v}</p>
                       </div>
                     ))}
                   </div>
-                  <p style={{ fontSize: 10, color: B.gray, margin: '8px 0 0' }}>Referencia: {param?.normal}</p>
+                  <p style={{ fontSize: 10.5, color: 'var(--ink-3)', margin: '9px 0 0' }}>Referencia: {param?.normal}</p>
                 </div>
               ))}
             </div>
@@ -146,40 +179,36 @@ export default function Parametros({ valoraciones, consultasMed, paciente }) {
 
       {/* Tabla completa */}
       {todas.length > 0 && (
-        <div style={{ background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}`, overflow: 'hidden' }}>
-          <div style={{ background: B.navy, padding: '12px 18px' }}>
-            <p style={{ color: 'white', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>Tabla de evolución completa</p>
+        <div style={{ ...CARD, boxShadow: 'var(--sh-2)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', padding: '12px 18px' }}>
+            <p style={{ fontWeight: 600, fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.12em', margin: 0 }}>Tabla de evolución completa</p>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
               <thead>
-                <tr style={{ background: B.grayLt }}>
-                  {['Fecha','Fuente','Peso','IMC','% Grasa','Músculo','Cintura','SpO2','FC','PA','VO2max'].map(h => (
-                    <th key={h} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', borderBottom: `2px solid ${B.grayMd}` }}>{h}</th>
+                <tr>
+                  {['Fecha', 'Fuente', 'Peso', 'IMC', '% Grasa', 'Músculo', 'Cintura', 'SpO2', 'FC', 'PA', 'VO2max'].map((h, i) => (
+                    <th key={h} style={{ padding: '11px 10px', textAlign: i < 2 ? 'left' : 'center', fontSize: 10, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.08em', borderBottom: '1px solid var(--line)', background: 'var(--surface-2)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {todas.map((m, i) => {
-                  const prev = i > 0 ? todas[i-1] : null;
+                  const prev = i > 0 ? todas[i - 1] : null;
                   const cell = (val, prevVal, key) => {
                     const diff = val && prevVal ? val - prevVal : null;
                     const c = diffColor(diff, key);
                     return (
-                      <td style={{ padding: '8px 10px', textAlign: 'center', borderBottom: `1px solid ${B.grayLt}`, fontSize: 12 }}>
-                        <span style={{ color: val ? c : B.gray, fontWeight: val ? 600 : 400 }}>{val ? val.toFixed(1) : '—'}</span>
-                        {diff !== null && Math.abs(diff) > 0.01 && <span style={{ fontSize: 9, color: c, display: 'block' }}>{diff > 0 ? '▲' : '▼'}{Math.abs(diff).toFixed(1)}</span>}
+                      <td style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5, ...num }}>
+                        <span style={{ color: val ? 'var(--ink)' : 'var(--ink-3)', fontWeight: val ? 600 : 400 }}>{val ? val.toFixed(1) : '—'}</span>
+                        {diff !== null && Math.abs(diff) > 0.01 && <span style={{ fontSize: 9.5, color: c, display: 'block', marginTop: 1 }}>{diff > 0 ? '▲' : '▼'}{Math.abs(diff).toFixed(1)}</span>}
                       </td>
                     );
                   };
                   return (
-                    <tr key={i} style={{ background: i % 2 === 0 ? 'white' : B.grayLt }}>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: B.navy, borderBottom: `1px solid ${B.grayLt}` }}>{fmtFull(m.fecha)}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', borderBottom: `1px solid ${B.grayLt}` }}>
-                        <span style={{ fontSize: 10, background: m.fuente === 'Fisioterapia' ? B.blue+'22' : B.teal+'22', color: m.fuente === 'Fisioterapia' ? B.blue : B.teal, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
-                          {m.fuente === 'Fisioterapia' ? '🏃' : '🩺'} {m.fuente}
-                        </span>
-                      </td>
+                    <tr key={i} style={{ background: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                      <td style={{ padding: '10px', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', borderBottom: '1px solid var(--line-soft)', whiteSpace: 'nowrap', ...num }}>{fmtFull(m.fecha)}</td>
+                      <td style={{ padding: '10px', borderBottom: '1px solid var(--line-soft)' }}><FuenteChip fuente={m.fuente} /></td>
                       {cell(m.peso, prev?.peso, 'peso')}
                       {cell(m.bmi, prev?.bmi, 'bmi')}
                       {cell(m.pct_grasa, prev?.pct_grasa, 'pct_grasa')}
@@ -187,7 +216,7 @@ export default function Parametros({ valoraciones, consultasMed, paciente }) {
                       {cell(m.cintura, prev?.cintura, 'cintura')}
                       {cell(m.spo2, prev?.spo2, 'spo2')}
                       {cell(m.fc_reposo, prev?.fc_reposo, 'fc_reposo')}
-                      <td style={{ padding: '8px 10px', textAlign: 'center', borderBottom: `1px solid ${B.grayLt}`, fontSize: 12 }}>
+                      <td style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid var(--line-soft)', fontSize: 12.5, ...num }}>
                         {m.pa_sistolica && m.pa_diastolica ? `${m.pa_sistolica}/${m.pa_diastolica}` : '—'}
                       </td>
                       {cell(m.vo2max, prev?.vo2max, 'vo2max')}
