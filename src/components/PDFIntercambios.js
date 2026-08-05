@@ -50,7 +50,7 @@ export function generarPDFIntercambios(paciente, plan) {
           </div>`).join('')}
         ${g.nota ? `
           <div style="margin-top:8px;background:${C.gold}22;border:1px solid ${C.gold};border-radius:6px;padding:6px 10px;">
-            <p style="margin:0;font-size:9.5px;color:${C.navy};font-weight:600;">✦ ${esc(g.nota)}</p>
+            <p style="margin:0;font-size:9.5px;color:${C.navy};font-weight:600;">${esc(g.nota)}</p>
           </div>` : ''}
       </div>
     </div>`).join('');
@@ -97,7 +97,7 @@ export function generarPDFIntercambios(paciente, plan) {
     if (!items || items.length === 0) return '';
     return `
       <div style="break-inside:avoid;border:1px solid ${C.grayMd};border-left:4px solid ${C.gold};border-radius:10px;padding:12px 16px;margin-bottom:12px;">
-        <p style="margin:0 0 8px;font-weight:700;font-size:11px;color:${C.navy};text-transform:uppercase;letter-spacing:2px;">${icono} ${titulo}</p>
+        <p style="margin:0 0 8px;font-weight:700;font-size:11px;color:${C.navy};text-transform:uppercase;letter-spacing:2px;">${titulo}</p>
         ${items.map(it => `
           <div style="display:flex;gap:8px;margin-bottom:5px;">
             <span style="color:${C.blue};font-size:10px;line-height:1.7;">●</span>
@@ -113,7 +113,8 @@ export function generarPDFIntercambios(paciente, plan) {
 <title>Plan Nutricional — ${esc(paciente.nombre)} ${esc(paciente.apellido)}</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  body { font-family:'Segoe UI', Arial, sans-serif; color:${C.navy}; background:white; }
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+  body { font-family:'Poppins','Segoe UI', Arial, sans-serif; color:${C.navy}; background:white; }
   @page { size:A4; margin:0; }
   @media print { .no-print { display:none; } }
 </style>
@@ -122,13 +123,13 @@ export function generarPDFIntercambios(paciente, plan) {
 
 <!-- BARRA NO IMPRIMIBLE -->
 <div class="no-print" style="background:${C.navy};padding:10px 20px;text-align:center;">
-  <button onclick="window.print()" style="background:${C.gold};color:${C.navy};border:none;border-radius:6px;padding:8px 24px;font-weight:700;font-size:13px;cursor:pointer;">🖨 Imprimir / Guardar como PDF</button>
+  <button onclick="window.print()" style="background:${C.gold};color:${C.navy};border:none;border-radius:6px;padding:8px 24px;font-weight:700;font-size:13px;cursor:pointer;">Imprimir / Guardar como PDF</button>
 </div>
 
 <!-- ═══ PORTADA / HEADER ═══ -->
 <div style="background:linear-gradient(135deg, ${C.navy} 0%, #123059 100%);padding:36px 40px 30px;">
   <div style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;margin-bottom:26px;">
-    <img src="${LOGO_SRC}" alt="IMC" style="height:72px;border-radius:10px;background:white;padding:6px;" />
+    <img src="${LOGO_SRC}" alt="IMC — Instituto Metabólico Corporal" style="height:58px;width:auto;display:block;" />
     <div>
       <p style="color:${C.gold};font-size:10px;text-transform:uppercase;letter-spacing:3px;margin-bottom:4px;">Instituto Metabólico Corporal</p>
       <h1 style="color:white;font-size:26px;font-weight:700;letter-spacing:1px;">PLAN NUTRICIONAL MENSUAL</h1>
@@ -153,7 +154,6 @@ export function generarPDFIntercambios(paciente, plan) {
 
 <!-- INTRO -->
 <div style="background:${C.blue};padding:14px 40px;display:flex;align-items:center;gap:12px;">
-  <span style="font-size:20px;flex-shrink:0;">💬</span>
   <p style="font-size:12px;color:white;line-height:1.5;"><strong>Este plan es flexible.</strong> Los alimentos de un mismo grupo pueden intercambiarse entre sí respetando la porción indicada — tú eliges qué comer cada día dentro de tus porciones asignadas.</p>
 </div>
 
@@ -192,9 +192,9 @@ export function generarPDFIntercambios(paciente, plan) {
   ${(recos.generales?.length || recos.agua?.length || recos.suplementos?.length) ? `
   <!-- ═══ RECOMENDACIONES ═══ -->
   ${secTitle('Recomendaciones')}
-  ${recoBloque('Recomendaciones generales', '📋', recos.generales)}
-  ${recoBloque('Recomendaciones de agua', '💧', recos.agua)}
-  ${recoBloque('Recomendaciones de suplemento', '💊', recos.suplementos)}` : ''}
+  ${recoBloque('Recomendaciones generales', '', recos.generales)}
+  ${recoBloque('Recomendaciones de agua', '', recos.agua)}
+  ${recoBloque('Recomendaciones de suplemento', '', recos.suplementos)}` : ''}
 
 </div>
 
