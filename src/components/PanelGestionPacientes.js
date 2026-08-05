@@ -1,13 +1,21 @@
 // ════════════════════════════════════════════════════════════════════════
 // PanelGestionPacientes.js — Panel de gestión con sistema de programas
-// 
-// Reemplaza al Pacientes.js antiguo. Usa el nuevo modelo:
-// - profiles (auth)
+//
+// Usa el modelo de programas:
 // - catalogo_programas (18 programas)
 // - programas_paciente (suscripción del paciente)
 // - invitaciones_paciente (envío por correo)
 //
-// Vista de la v_pacientes_con_programa para optimizar queries.
+// Vista v_pacientes_con_programa + v_stats_panel_pacientes para las queries.
+//
+// ── Capa visual v2 ("clínico premium", aprobada 04/08/2026) ────────────
+// La cabecera, los KPIs, los chips, EstadoDot e Inicial ya estaban migrados. Esta
+// pasada termina lo que faltaba: la tabla, la tarjeta móvil, el estado vacío, el
+// aviso flotante y los tres modales.
+//
+// Lo que NO cambió: props, estados, las dos vistas SQL, el filtrado, la cadena de
+// tres inserts (pacientes → programas_paciente → invitaciones_paciente), el cálculo
+// de fecha de vencimiento, y los updates de suspender / reactivar / renovar.
 // ════════════════════════════════════════════════════════════════════════
 
 import { useState, useEffect } from 'react';
@@ -15,25 +23,64 @@ import { supabase } from '../lib/supabase';
 import AccesoPacienteModal from './AccesoPacienteModal';
 import { Icon, EstadoDot, Inicial } from './v2/Icon';
 
-// ── PALETA IMC (consistente con tu sistema) ────────────────────────────
-const B = {
-  navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
-  grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF',
-  green: '#1A7A4A', red: '#B02020', orange: '#C25A00', amber: '#F59E0B',
-  purple: '#7C3AED',
-};
+const ROJO = '#B02020';
+const VERDE = '#1A7A4A';
+const NARANJA = '#C25A00';
+const AMBAR = '#B87503';
+const MORADO = '#7C3AED';
+const AZUL = '#1E7CB5';
 
-// ── METADATOS DE ESTADOS ───────────────────────────────────────────────
-const ESTADOS_META = {
-  pendiente_activacion: { color: B.gray,   bg: '#E5E7EB', icon: '⏳', label: 'Pendiente activación' },
-  activo:               { color: B.green,  bg: '#E6F5EE', icon: '🟢', label: 'Activo' },
-  por_vencer:           { color: B.amber,  bg: '#FEF3C7', icon: '🟡', label: 'Por vencer' },
-  modo_lectura:         { color: B.orange, bg: '#FFF0E0', icon: '🟠', label: 'Modo lectura' },
-  suspendido:           { color: B.red,    bg: '#FFEBEB', icon: '🔴', label: 'Suspendido' },
-  finalizado:           { color: B.teal,   bg: B.grayLt,  icon: '⚪', label: 'Finalizado' },
-};
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-const calcAge = dob => dob ? Math.floor((Date.now() - new Date(dob).getTime()) / 31557600000) : 0;
+// Antes en móvil se leía window.innerWidth en cada render sin escuchar el resize,
+// así que al girar el teléfono el layout no cambiaba hasta recargar.
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return isMobile;
+}
+
+// ── Estilos compartidos (v2) ──────────────────────────────────────────
+const FUENTE = 'Poppins, system-ui, sans-serif';
+const COLS = '50px 2fr 1.5fr 1.3fr 1fr 1fr 160px';
+
+const fieldLabel = () => ({ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '.06em', marginBottom: 6 });
+const fieldRow = () => ({ display: 'flex', flexWrap: 'wrap', gap: '0 4%' });
+const inputStyle = (extra) => ({ width: '100%', height: 40, padding: '0 11px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface)', fontSize: 13.5, color: 'var(--ink)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', ...extra });
+
+const btnPrimary = (extra) => ({ height: 40, padding: '0 20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: 'linear-gradient(180deg,#14355F,var(--ink))', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 8px 18px -10px rgba(11,31,59,.55)', ...extra });
+const btnSecondary = () => ({ height: 40, padding: '0 18px', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--surface)', color: 'var(--ink-2)', border: '1px solid var(--line)', borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' });
+const btnPlano = (color) => ({ height: 40, padding: '0 18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: color, color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' });
+
+const modalBg = () => ({ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.55)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20, fontFamily: FUENTE, color: 'var(--ink)' });
+const modalCard = (width) => ({ background: 'var(--surface)', borderRadius: 18, width: '100%', maxWidth: width, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 40px 90px -30px rgba(11,31,59,.6)' });
+const modalHeader = (extra) => ({ background: 'linear-gradient(180deg,#14355F,var(--ink))', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10, ...extra });
+
+const tableHeader = (isMobile) => ({
+  display: isMobile ? 'none' : 'grid',
+  gridTemplateColumns: COLS, gap: 12,
+  padding: '12px 16px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)',
+  fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '.12em',
+});
+
+// Helper V2: botón icónico como el mockup
+const iconBtnV2 = (extra = {}) => ({
+  width: 32, height: 32, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  border: '1px solid var(--line)', borderRadius: 9, background: 'var(--surface)',
+  color: 'var(--ink-2)', cursor: 'pointer', transition: 'all .14s ease', fontFamily: 'inherit',
+  ...extra,
+});
+
+const BotonCerrar = ({ onClose }) => (
+  <button onClick={onClose} aria-label="Cerrar"
+    style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.1)', border: 'none', borderRadius: 9, color: '#fff', cursor: 'pointer', flexShrink: 0 }}>
+    <Icon name="x" size={16} strokeWidth={2} />
+  </button>
+);
 
 // ════════════════════════════════════════════════════════════════════════
 // COMPONENTE PRINCIPAL
@@ -50,6 +97,7 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
   const [modalSuspender, setModalSuspender] = useState(null);
   const [modalAcceso, setModalAcceso] = useState(null);
   const [toast, setToast] = useState(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => { cargarDatos(); }, []);
 
@@ -60,19 +108,19 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
       .from('v_pacientes_con_programa')
       .select('*')
       .order('nombre');
-    
+
     // Cargar stats agregados
     const { data: st } = await supabase
       .from('v_stats_panel_pacientes')
       .select('*')
       .single();
-    
+
     setPacientes(pacs || []);
     setStats(st || {});
     setLoading(false);
   };
 
-  const showToast = (msg, color = B.green) => {
+  const showToast = (msg, color = VERDE) => {
     setToast({ msg, color });
     setTimeout(() => setToast(null), 3000);
   };
@@ -81,22 +129,19 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
   const filtrados = pacientes.filter(p => {
     // Filtro por estado
     if (filtroEstado !== 'todos' && p.programa_estado !== filtroEstado) return false;
-    if (filtroEstado === 'todos' && !p.programa_id) {
-      // Si no hay programa y filtro "todos", lo mostramos como pendiente
-    }
-    
+
     // Filtro por módulo
     if (filtroModulo === 'nutri' && !p.incluye_nutricion) return false;
     if (filtroModulo === 'fisio' && !p.incluye_fisioterapia) return false;
     if (filtroModulo === 'aparat' && !p.incluye_aparatologia) return false;
-    
+
     // Búsqueda
     if (busqueda) {
       const q = busqueda.toLowerCase();
       const texto = `${p.nombre || ''} ${p.apellido || ''} ${p.email || ''} ${p.telefono || ''}`.toLowerCase();
       if (!texto.includes(q)) return false;
     }
-    
+
     return true;
   });
 
@@ -104,15 +149,15 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
   const handleSuspender = async (paciente, razon) => {
     const { error } = await supabase
       .from('programas_paciente')
-      .update({ 
-        estado: 'suspendido', 
+      .update({
+        estado: 'suspendido',
         razon_estado: razon,
         fecha_suspension: new Date().toISOString()
       })
       .eq('id', paciente.programa_id);
-    
-    if (error) { showToast('Error: ' + error.message, B.red); return; }
-    showToast(`${paciente.nombre} suspendido ✓`, B.orange);
+
+    if (error) { showToast('Error: ' + error.message, ROJO); return; }
+    showToast(`${paciente.nombre} suspendido`, NARANJA);
     cargarDatos();
     setModalSuspender(null);
   };
@@ -120,92 +165,62 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
   const handleReactivar = async (paciente) => {
     const { error } = await supabase
       .from('programas_paciente')
-      .update({ 
-        estado: 'activo', 
+      .update({
+        estado: 'activo',
         razon_estado: null,
-        fecha_suspension: null 
+        fecha_suspension: null
       })
       .eq('id', paciente.programa_id);
-    
-    if (error) { showToast('Error: ' + error.message, B.red); return; }
-    showToast(`${paciente.nombre} reactivado ✓`);
+
+    if (error) { showToast('Error: ' + error.message, ROJO); return; }
+    showToast(`${paciente.nombre} reactivado`);
     cargarDatos();
   };
 
   // ────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 24, maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      
+    <div style={{ padding: isMobile ? 16 : 28, maxWidth: 1400, margin: '0 auto', width: '100%', boxSizing: 'border-box', fontFamily: FUENTE, color: 'var(--ink)' }}>
+
       {/* HEADER V2 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 22, gap: 20, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{ fontSize: 25, fontWeight: 600, letterSpacing: '-.02em', color: 'var(--ink)', margin: '0 0 5px', fontFamily: 'Poppins, sans-serif' }}>
+          <h1 style={{ fontSize: 25, fontWeight: 600, letterSpacing: '-.02em', margin: '0 0 5px' }}>
             Pacientes
           </h1>
-          <p style={{ fontSize: 13.5, color: 'var(--ink-2)', margin: 0, fontFamily: 'Poppins, sans-serif' }}>
+          <p style={{ fontSize: 13.5, color: 'var(--ink-2)', margin: 0 }}>
             {stats.total || 0} en gestión
             {stats.por_vencer > 0 && (
-              <span style={{ color: '#B87503', fontWeight: 500, marginLeft: 6 }}>
+              <span style={{ color: AMBAR, fontWeight: 500, marginLeft: 6 }}>
                 · {stats.por_vencer} vencen este mes
               </span>
             )}
           </p>
         </div>
-        <button
-          onClick={() => setModalNuevo(true)}
-          style={{
-            height: 40,
-            padding: '0 18px',
-            background: 'linear-gradient(180deg,#14355F,var(--ink))',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 10,
-            fontFamily: 'inherit',
-            fontSize: 13.5,
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 8px 18px -10px rgba(11,31,59,.55)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <Icon name="plus" size={17} /> Nuevo paciente
+        <button onClick={() => setModalNuevo(true)} style={btnPrimary({ padding: '0 18px' })}>
+          <Icon name="plus" size={17} color="#fff" /> Nuevo paciente
         </button>
       </div>
 
-      {/* KPIs V2 - 5 columnas con progress bars */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 16 }}>
+      {/* KPIs V2 — en móvil pasan a dos columnas para no aplastarse */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(5,1fr)', gap: 12, marginBottom: 16 }}>
         <KpiCardV2 activa={filtroEstado === 'todos'} label="Todos los pacientes" num={stats.total || 0} total={stats.total || 1} tone="var(--accent)" onClick={() => setFiltroEstado('todos')} />
-        <KpiCardV2 activa={filtroEstado === 'activo'} label="Activos" num={stats.activos || 0} total={stats.total || 1} tone="#1A7A4A" onClick={() => setFiltroEstado('activo')} />
+        <KpiCardV2 activa={filtroEstado === 'activo'} label="Activos" num={stats.activos || 0} total={stats.total || 1} tone={VERDE} onClick={() => setFiltroEstado('activo')} />
         <KpiCardV2 activa={filtroEstado === 'por_vencer'} label="Por vencer" num={stats.por_vencer || 0} total={stats.total || 1} tone="#E0A62A" onClick={() => setFiltroEstado('por_vencer')} />
-        <KpiCardV2 activa={filtroEstado === 'modo_lectura'} label="Modo lectura" num={stats.modo_lectura || 0} total={stats.total || 1} tone="#C25A00" onClick={() => setFiltroEstado('modo_lectura')} />
-        <KpiCardV2 activa={filtroEstado === 'suspendido'} label="Suspendidos" num={stats.suspendidos || 0} total={stats.total || 1} tone="#B02020" onClick={() => setFiltroEstado('suspendido')} />
+        <KpiCardV2 activa={filtroEstado === 'modo_lectura'} label="Modo lectura" num={stats.modo_lectura || 0} total={stats.total || 1} tone={NARANJA} onClick={() => setFiltroEstado('modo_lectura')} />
+        <KpiCardV2 activa={filtroEstado === 'suspendido'} label="Suspendidos" num={stats.suspendidos || 0} total={stats.total || 1} tone={ROJO} onClick={() => setFiltroEstado('suspendido')} />
       </div>
 
       {/* Filtros V2 con search e iconos */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 280, maxWidth: 420 }}>
-          <span style={{ position: 'absolute', left: 13, top: 11, color: 'var(--ink-3)' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 280, maxWidth: 420 }}>
+          <span style={{ position: 'absolute', left: 13, display: 'flex', color: 'var(--ink-3)', pointerEvents: 'none' }}>
             <Icon name="search" size={17} />
           </span>
           <input
             value={busqueda}
             onChange={e => setBusqueda(e.target.value)}
             placeholder="Buscar por nombre, email o teléfono"
-            style={{
-              width: '100%',
-              height: 40,
-              padding: '0 12px 0 38px',
-              border: '1px solid var(--line)',
-              borderRadius: 10,
-              background: 'var(--surface)',
-              fontFamily: 'inherit',
-              fontSize: 13.5,
-              color: 'var(--ink)',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            style={inputStyle({ paddingLeft: 38 })}
           />
         </div>
         <div style={{ display: 'flex', gap: 7, marginLeft: 'auto', flexWrap: 'wrap' }}>
@@ -224,39 +239,45 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
 
       {/* TABLA DE PACIENTES */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: B.gray }}>
-          Cargando pacientes...
-        </div>
+        <p style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)', fontSize: 13.5 }}>
+          Cargando pacientes…
+        </p>
       ) : filtrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60 }}>
-          <p style={{ fontSize: 48, marginBottom: 12 }}>👥</p>
-          <p style={{ color: B.gray }}>
+        <div style={{ textAlign: 'center', padding: '60px 24px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, boxShadow: 'var(--sh-1)' }}>
+          <span style={{ display: 'inline-flex', width: 48, height: 48, borderRadius: 14, background: 'var(--accent-wash)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <Icon name="users" size={22} color="var(--accent)" />
+          </span>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
+            {pacientes.length === 0 ? 'Aún no hay pacientes' : 'Sin resultados'}
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '6px 0 0' }}>
             {pacientes.length === 0
-              ? 'Aún no tienes pacientes. Crea el primero con "+ Nuevo paciente".'
-              : 'No hay pacientes que coincidan con los filtros actuales.'}
+              ? 'Crea el primero con «Nuevo paciente».'
+              : 'Prueba con otro término o quita los filtros.'}
           </p>
         </div>
       ) : (
         <div style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--line)', boxShadow: 'var(--sh-2)', overflow: 'hidden', width: '100%' }}>
           {/* Header de tabla */}
-          <div style={tableHeader()}>
+          <div style={tableHeader(isMobile)}>
             <div></div>
-            <div>PACIENTE</div>
-            <div>PROGRAMA</div>
-            <div>MÓDULOS</div>
-            <div>VENCE</div>
-            <div>ESTADO</div>
-            <div style={{ textAlign: 'right' }}>ACCIONES</div>
+            <div>Paciente</div>
+            <div>Programa</div>
+            <div>Módulos</div>
+            <div>Vence</div>
+            <div>Estado</div>
+            <div style={{ textAlign: 'right' }}>Acciones</div>
           </div>
-          
+
           {/* Filas de pacientes */}
           {filtrados.map(p => (
             <PatientRow
               key={p.paciente_id}
               paciente={p}
-              onAbrir={() => onAbrirPaciente && onAbrirPaciente({ 
-                id: p.paciente_id, 
-                nombre: p.nombre, 
+              isMobile={isMobile}
+              onAbrir={() => onAbrirPaciente && onAbrirPaciente({
+                id: p.paciente_id,
+                nombre: p.nombre,
                 apellido: p.apellido,
                 cedula: p.cedula,
                 fecha_nacimiento: p.fecha_nacimiento,
@@ -279,18 +300,18 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
         <ModalNuevoPaciente
           usuario={usuario}
           onClose={() => setModalNuevo(false)}
-          onGuardado={() => { cargarDatos(); setModalNuevo(false); showToast('Paciente creado e invitación enviada ✓'); }}
+          onGuardado={() => { cargarDatos(); setModalNuevo(false); showToast('Paciente creado e invitación enviada'); }}
         />
       )}
-      
+
       {modalRenovar && (
         <ModalRenovar
           paciente={modalRenovar}
           onClose={() => setModalRenovar(null)}
-          onRenovado={() => { cargarDatos(); setModalRenovar(null); showToast('Programa renovado ✓'); }}
+          onRenovado={() => { cargarDatos(); setModalRenovar(null); showToast('Programa renovado'); }}
         />
       )}
-      
+
       {modalSuspender && (
         <ModalSuspender
           paciente={modalSuspender}
@@ -311,10 +332,13 @@ export default function PanelGestionPacientes({ onAbrirPaciente, usuario }) {
       {toast && (
         <div style={{
           position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          background: toast.color, color: 'white', padding: '12px 28px',
-          borderRadius: 30, fontWeight: 700, fontSize: 13, zIndex: 9999,
-          boxShadow: '0 10px 40px rgba(0,0,0,0.2)'
+          display: 'flex', alignItems: 'center', gap: 9,
+          background: 'var(--ink)', color: '#fff', padding: '12px 20px',
+          borderRadius: 12, fontWeight: 500, fontSize: 13.5, zIndex: 9999,
+          boxShadow: 'var(--sh-nav)', fontFamily: FUENTE,
         }}>
+          <Icon name={toast.color === ROJO ? 'alert-circle' : 'check-circle-2'} size={16}
+            color={toast.color === ROJO ? '#FCA5A5' : toast.color === NARANJA ? '#F5C87A' : '#6EE7A8'} />
           {toast.msg}
         </div>
       )}
@@ -354,194 +378,153 @@ function ChipV2({ on, onClick, children }) {
   return (
     <button onClick={onClick}
       style={{
-        height: 34,
-        padding: '0 13px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 7,
-        border: on ? '1px solid var(--ink)' : '1px solid var(--line)',
-        borderRadius: 999,
-        background: on ? 'var(--ink)' : 'var(--surface)',
-        fontFamily: 'inherit',
-        fontSize: 12.5,
-        fontWeight: 500,
-        color: on ? '#fff' : 'var(--ink-2)',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-        transition: 'all .14s ease',
+        height: 34, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7,
+        border: on ? '1px solid var(--ink)' : '1px solid var(--line)', borderRadius: 999,
+        background: on ? 'var(--ink)' : 'var(--surface)', fontFamily: 'inherit',
+        fontSize: 12.5, fontWeight: 500, color: on ? '#fff' : 'var(--ink-2)',
+        cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'all .14s ease',
       }}>
       {children}
     </button>
   );
 }
 
+// ── Texto de vencimiento, compartido entre la fila y la tarjeta móvil ──
+function textoVencimiento(dias) {
+  if (dias == null) return null;
+  if (dias < 0) return `Hace ${Math.abs(dias)} ${Math.abs(dias) === 1 ? 'día' : 'días'}`;
+  if (dias === 0) return 'Hoy';
+  return `En ${dias} ${dias === 1 ? 'día' : 'días'}`;
+}
+const colorVencimiento = dias => dias == null ? 'var(--ink-3)' : dias < 0 ? ROJO : dias < 14 ? NARANJA : 'var(--ink-3)';
+
 // ════════════════════════════════════════════════════════════════════════
 // SUBCOMPONENTE: Fila de paciente en la tabla
 // ════════════════════════════════════════════════════════════════════════
-function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, onAcceso }) {
-  const meta = ESTADOS_META[paciente.programa_estado] || ESTADOS_META.pendiente_activacion;
-  const inicial = paciente.nombre?.charAt(0)?.toUpperCase() || '?';
+function PatientRow({ paciente, isMobile, onAbrir, onRenovar, onSuspender, onReactivar, onAcceso }) {
   const diasRestantes = paciente.dias_restantes;
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  
+
   // ── Versión móvil: tarjeta vertical ────────────────────────────────
   if (isMobile) {
     return (
       <div
         onClick={onAbrir}
-        style={{
-          padding: '14px 14px',
-          borderBottom: `1px solid ${B.grayLt}`,
-          cursor: 'pointer',
-          background: 'white',
-        }}
+        style={{ padding: '14px 15px', borderBottom: '1px solid var(--line-soft)', cursor: 'pointer', background: 'var(--surface)' }}
       >
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          {/* Avatar */}
-          <div style={{
-            width: 44, height: 44, borderRadius: 22,
-            background: `linear-gradient(135deg, ${B.blue}, ${B.navy})`,
-            color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 15, flexShrink: 0,
-          }}>
-            {inicial}
-          </div>
-          
-          {/* Info principal */}
+          <Inicial nombre={paciente.nombre} size={42} tone="strong" />
+
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Nombre completo */}
-            <div style={{ fontSize: 14, fontWeight: 800, color: B.navy, lineHeight: 1.3 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, margin: 0, lineHeight: 1.3 }}>
               {paciente.nombre} {paciente.apellido || ''}
-            </div>
-            
-            {/* Programa */}
-            <div style={{ fontSize: 11, color: B.gray, marginTop: 2 }}>
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '3px 0 0' }}>
               {paciente.programa_nombre || 'Sin programa asignado'}
-            </div>
-            
-            {/* Pills */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{
-                background: meta.bg, color: meta.color,
-                padding: '3px 9px', borderRadius: 10, fontSize: 9,
-                fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3,
-              }}>
-                {meta.icon} {meta.label}
-              </span>
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 9, flexWrap: 'wrap', alignItems: 'center' }}>
+              <EstadoDot estado={paciente.programa_estado || 'pendiente_activacion'} />
               {paciente.fecha_vencimiento && (
-                <span style={{
-                  fontSize: 10, color: diasRestantes < 0 ? B.red : diasRestantes < 14 ? B.orange : B.gray,
-                  fontWeight: 600,
-                }}>
-                  {diasRestantes < 0 ? `Vencido hace ${Math.abs(diasRestantes)}d` 
-                    : diasRestantes === 0 ? 'Vence hoy'
-                    : `${diasRestantes}d para vencer`}
+                <span style={{ fontSize: 12, color: colorVencimiento(diasRestantes), whiteSpace: 'nowrap' }}>
+                  {diasRestantes < 0 ? 'Vencido' : 'Vence'} {textoVencimiento(diasRestantes).toLowerCase()}
                 </span>
               )}
             </div>
-            
-            {/* Módulos pequeños */}
-            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-              <ModuleDot active={paciente.incluye_nutricion}    color="#1A7A4A"  iconName="utensils" />
-              <ModuleDot active={paciente.incluye_fisioterapia} color="#C25A00"  iconName="activity" />
-              <ModuleDot active={paciente.incluye_aparatologia} color="#7C3AED"  iconName="zap" />
+
+            <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+              <ModuleDot active={paciente.incluye_nutricion}    color={VERDE}   iconName="utensils" />
+              <ModuleDot active={paciente.incluye_fisioterapia} color={NARANJA} iconName="activity" />
+              <ModuleDot active={paciente.incluye_aparatologia} color={MORADO}  iconName="zap" />
             </div>
           </div>
+
+          <Icon name="chevron-right" size={17} color="var(--ink-3)" style={{ marginTop: 12 }} />
         </div>
       </div>
     );
   }
-  
-  // ── Versión desktop: fila horizontal (original) ───────────────────
+
+  // ── Versión desktop: fila horizontal ───────────────────────────────
   return (
     <div
       style={{
-        display: 'grid',
-        gridTemplateColumns: '50px 2fr 1.5fr 1.3fr 1fr 1fr 160px',
-        gap: 12,
-        padding: '14px 16px',
-        alignItems: 'center',
-        borderBottom: `1px solid ${B.grayLt}`,
-        transition: 'background 0.15s',
-        cursor: 'pointer',
+        display: 'grid', gridTemplateColumns: COLS, gap: 12,
+        padding: '14px 16px', alignItems: 'center',
+        borderBottom: '1px solid var(--line-soft)',
+        transition: 'background .14s ease', cursor: 'pointer',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = B.grayLt}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-2)'}
       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       onClick={onAbrir}
     >
       {/* Avatar V2 */}
       <Inicial nombre={paciente.nombre} size={40} />
-      
+
       {/* Info paciente */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: B.navy }}>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {paciente.nombre} {paciente.apellido || ''}
-        </div>
-        <div style={{ fontSize: 11, color: B.gray }}>
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {paciente.email || 'Sin email'}
-        </div>
+        </p>
       </div>
-      
+
       {/* Programa */}
-      <div>
+      <div style={{ minWidth: 0 }}>
         {paciente.programa_nombre ? (
           <>
-            <div style={{ fontSize: 12, color: B.navy, fontWeight: 600 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 500, margin: 0, lineHeight: 1.35 }}>
               {paciente.programa_nombre}
-            </div>
-            <div style={{ fontSize: 10, color: B.gray, marginTop: 2 }}>
+            </p>
+            <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: '3px 0 0' }}>
               Día {paciente.dia_del_programa || 0} de {paciente.duracion_total_dias || '—'}
-            </div>
+            </p>
           </>
         ) : (
-          <div style={{ fontSize: 12, color: B.gray, fontStyle: 'italic' }}>
-            Sin programa asignado
-          </div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: 0 }}>Sin programa</p>
         )}
       </div>
-      
+
       {/* Módulos */}
       <div style={{ display: 'flex', gap: 6 }}>
-        <ModuleDot active={paciente.incluye_nutricion}    color="#1A7A4A"  iconName="utensils" />
-        <ModuleDot active={paciente.incluye_fisioterapia} color="#C25A00"  iconName="activity" />
-        <ModuleDot active={paciente.incluye_aparatologia} color="#7C3AED"  iconName="zap" />
+        <ModuleDot active={paciente.incluye_nutricion}    color={VERDE}   iconName="utensils" />
+        <ModuleDot active={paciente.incluye_fisioterapia} color={NARANJA} iconName="activity" />
+        <ModuleDot active={paciente.incluye_aparatologia} color={MORADO}  iconName="zap" />
       </div>
-      
+
       {/* Vence */}
       <div>
         {paciente.fecha_vencimiento ? (
           <>
-            <div style={{ fontSize: 12, fontWeight: 700, color: diasRestantes < 14 ? B.orange : B.navy }}>
+            <p style={{ fontSize: 12.5, fontWeight: 500, margin: 0, color: diasRestantes < 14 ? NARANJA : 'var(--ink)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
               {formatDate(paciente.fecha_vencimiento)}
-            </div>
-            <div style={{ fontSize: 10, color: diasRestantes < 0 ? B.red : diasRestantes < 14 ? B.orange : B.gray }}>
-              {diasRestantes < 0 ? `Hace ${Math.abs(diasRestantes)} días` 
-                : diasRestantes === 0 ? 'Hoy'
-                : `En ${diasRestantes} días`}
-            </div>
+            </p>
+            <p style={{ fontSize: 11.5, margin: '3px 0 0', color: colorVencimiento(diasRestantes), whiteSpace: 'nowrap' }}>
+              {textoVencimiento(diasRestantes)}
+            </p>
           </>
         ) : (
-          <div style={{ fontSize: 12, color: B.gray }}>—</div>
+          <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: 0 }}>—</p>
         )}
       </div>
-      
+
       {/* Estado V2 con dot circular */}
       <div>
         <EstadoDot estado={paciente.programa_estado || 'pendiente_activacion'} />
       </div>
-      
+
       {/* Acciones V2 con iconos Lucide */}
       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
         <button onClick={onAcceso} title="Acceso a la app del paciente" style={iconBtnV2()}>
           <Icon name="key-round" size={15} />
         </button>
         {paciente.programa_estado === 'por_vencer' || paciente.programa_estado === 'modo_lectura' ? (
-          <button onClick={onRenovar} title="Renovar programa" style={iconBtnV2({ borderColor: '#F0D9A8', color: '#B87503', background: '#FFFBF2' })}>
+          <button onClick={onRenovar} title="Renovar programa" style={iconBtnV2({ borderColor: '#F0D9A8', color: AMBAR, background: '#FFFBF2' })}>
             <Icon name="refresh-cw" size={15} />
           </button>
         ) : paciente.programa_estado === 'suspendido' ? (
-          <button onClick={onReactivar} title="Reactivar programa" style={iconBtnV2({ borderColor: '#BFE0CE', color: '#1A7A4A', background: '#F2FBF6' })}>
+          <button onClick={onReactivar} title="Reactivar programa" style={iconBtnV2({ borderColor: '#BFE0CE', color: VERDE, background: '#F2FBF6' })}>
             <Icon name="play" size={15} />
           </button>
         ) : (
@@ -557,24 +540,7 @@ function PatientRow({ paciente, onAbrir, onRenovar, onSuspender, onReactivar, on
   );
 }
 
-// Helper V2: botón icónico como el mockup
-const iconBtnV2 = (extra = {}) => ({
-  width: 32,
-  height: 32,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: '1px solid var(--line)',
-  borderRadius: 9,
-  background: 'var(--surface)',
-  color: 'var(--ink-2)',
-  cursor: 'pointer',
-  transition: 'all .14s ease',
-  fontFamily: 'inherit',
-  ...extra,
-});
-
-function ModuleDot({ active, color, emoji, iconName }) {
+function ModuleDot({ active, color, iconName }) {
   return (
     <span style={{
       width: 30, height: 30, borderRadius: 9,
@@ -595,7 +561,7 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
   const [programas, setProgramas] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
-  
+
   // Datos del paciente
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
@@ -604,13 +570,13 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
   const [cedula, setCedula] = useState('');
   const [fechaNac, setFechaNac] = useState('');
   const [sexo, setSexo] = useState('');
-  
+
   // Datos del programa
   const [catalogoId, setCatalogoId] = useState('');
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
   const [frecuencia, setFrecuencia] = useState('quincenal');
   const [grupoNutri, setGrupoNutri] = useState('B');
-  
+
   useEffect(() => {
     supabase.from('catalogo_programas')
       .select('*').eq('activo', true).order('orden')
@@ -629,7 +595,7 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
       setError('Selecciona un programa');
       return;
     }
-    
+
     setGuardando(true);
     try {
       // 1. Crear paciente
@@ -644,14 +610,14 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
         }])
         .select()
         .single();
-      
+
       if (errPac) throw errPac;
-      
+
       // 2. Calcular fecha vencimiento
       const meses = programaSel?.duracion_meses || 1;
       const venc = new Date(fechaInicio);
       venc.setMonth(venc.getMonth() + meses);
-      
+
       // 3. Crear programa
       const { data: prog, error: errProg } = await supabase
         .from('programas_paciente')
@@ -670,9 +636,9 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
         }])
         .select()
         .single();
-      
+
       if (errProg) throw errProg;
-      
+
       // 4. Crear invitación
       const { error: errInv } = await supabase
         .from('invitaciones_paciente')
@@ -683,9 +649,9 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
           nombre_completo: `${nombre} ${apellido}`.trim(),
           enviada_por: usuario?.id,
         }]);
-      
+
       if (errInv) throw errInv;
-      
+
       onGuardado();
     } catch (e) {
       setError(e.message);
@@ -700,83 +666,83 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
         {/* Header */}
         <div style={modalHeader()}>
           <div>
-            <div style={{ color: 'white', fontWeight: 800, fontSize: 16 }}>Nuevo Paciente</div>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 2 }}>
+            <p style={{ color: '#fff', fontWeight: 600, fontSize: 16, margin: 0, letterSpacing: '-.01em' }}>Nuevo paciente</p>
+            <p style={{ color: 'rgba(255,255,255,.55)', fontSize: 12, margin: '3px 0 0' }}>
               Paso {paso} de 2 — {paso === 1 ? 'Datos personales' : 'Programa contratado'}
-            </div>
+            </p>
           </div>
-          <button onClick={onClose} style={btnClose()}>✕</button>
+          <BotonCerrar onClose={onClose} />
         </div>
-        
+
         {/* Stepper */}
-        <div style={{ display: 'flex', padding: '0 28px', background: B.grayLt, gap: 4 }}>
-          <div style={stepperItem(paso >= 1)}>1. Datos personales</div>
-          <div style={stepperItem(paso >= 2)}>2. Programa + invitación</div>
+        <div style={{ display: 'flex', padding: '0 24px', background: 'var(--surface-2)', borderBottom: '1px solid var(--line)', gap: 4 }}>
+          <div style={stepperItem(paso >= 1)}>1 · Datos personales</div>
+          <div style={stepperItem(paso >= 2)}>2 · Programa e invitación</div>
         </div>
-        
+
         {/* Body */}
-        <div style={{ padding: '24px 28px' }}>
-          
+        <div style={{ padding: '22px 24px 24px' }}>
+
           {paso === 1 && (
             <>
-              <SectionTitle>👤 Datos personales</SectionTitle>
+              <SectionTitle>Datos personales</SectionTitle>
               <div style={fieldRow()}>
-                <Field label="Nombre *"        value={nombre}   onChange={setNombre} half />
-                <Field label="Apellido"        value={apellido} onChange={setApellido} half />
-                <Field label="Email *"         value={email}    onChange={setEmail} type="email" half />
-                <Field label="Teléfono"        value={telefono} onChange={setTelefono} half />
-                <Field label="Cédula"          value={cedula}   onChange={setCedula} half />
-                <Field label="Fecha nacimiento"value={fechaNac} onChange={setFechaNac} type="date" half />
+                <Field label="Nombre *"         value={nombre}   onChange={setNombre} half />
+                <Field label="Apellido"         value={apellido} onChange={setApellido} half />
+                <Field label="Email *"          value={email}    onChange={setEmail} type="email" half />
+                <Field label="Teléfono"         value={telefono} onChange={setTelefono} half />
+                <Field label="Cédula"           value={cedula}   onChange={setCedula} half />
+                <Field label="Fecha nacimiento" value={fechaNac} onChange={setFechaNac} type="date" half />
                 <Field label="Sexo" value={sexo} onChange={setSexo} half
                   opts={[{ v: '', l: '—' }, { v: 'F', l: 'Femenino' }, { v: 'M', l: 'Masculino' }, { v: 'O', l: 'Otro' }]} />
               </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
                 <button onClick={onClose} style={btnSecondary()}>Cancelar</button>
-                <button 
+                <button
                   onClick={() => setPaso(2)}
                   disabled={!nombre || !email}
-                  style={btnPrimary({ opacity: (nombre && email) ? 1 : 0.5 })}
+                  style={btnPrimary({ opacity: (nombre && email) ? 1 : 0.5, cursor: (nombre && email) ? 'pointer' : 'not-allowed' })}
                 >
-                  Siguiente →
+                  Siguiente <Icon name="chevron-right" size={16} color="#fff" />
                 </button>
               </div>
             </>
           )}
-          
+
           {paso === 2 && (
             <>
-              <SectionTitle>📋 Programa contratado</SectionTitle>
-              
-              <div style={{ marginBottom: 14 }}>
+              <SectionTitle>Programa contratado</SectionTitle>
+
+              <div style={{ marginBottom: 16 }}>
                 <label style={fieldLabel()}>Programa *</label>
-                <select 
-                  value={catalogoId} 
+                <select
+                  value={catalogoId}
                   onChange={e => setCatalogoId(e.target.value)}
-                  style={inputStyle({ width: '100%' })}
+                  style={inputStyle()}
                 >
                   <option value="">— Selecciona un programa —</option>
                   {programas.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre} {p.apellido || ''}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
                   ))}
                 </select>
-                
+
                 {programaSel && (
-                  <div style={{ marginTop: 10, padding: 12, background: B.grayLt, borderRadius: 8, fontSize: 12, color: B.navy }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>{programaSel.nombre}</div>
-                    {programaSel.descripcion && <div style={{ color: B.gray, marginBottom: 6 }}>{programaSel.descripcion}</div>}
+                  <div style={{ marginTop: 10, padding: '13px 14px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 12 }}>
+                    <p style={{ fontWeight: 600, fontSize: 13.5, margin: '0 0 4px' }}>{programaSel.nombre}</p>
+                    {programaSel.descripcion && (
+                      <p style={{ fontSize: 12.5, color: 'var(--ink-2)', margin: '0 0 10px', lineHeight: 1.5 }}>{programaSel.descripcion}</p>
+                    )}
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {programaSel.incluye_nutricion && <span style={badgeStyle(B.green)}>🥗 Nutrición</span>}
-                      {programaSel.incluye_fisioterapia && <span style={badgeStyle(B.orange)}>🏃 Fisioterapia</span>}
-                      {programaSel.incluye_aparatologia && <span style={badgeStyle(B.purple)}>⚡ {programaSel.sesiones_aparatologia} sesiones</span>}
-                      {programaSel.duracion_meses && <span style={badgeStyle(B.blue)}>📅 {programaSel.duracion_meses} {programaSel.duracion_meses === 1 ? 'mes' : 'meses'}</span>}
+                      {programaSel.incluye_nutricion && <Badge color={VERDE} icon="utensils">Nutrición</Badge>}
+                      {programaSel.incluye_fisioterapia && <Badge color={NARANJA} icon="activity">Fisioterapia</Badge>}
+                      {programaSel.incluye_aparatologia && <Badge color={MORADO} icon="zap">{programaSel.sesiones_aparatologia} sesiones</Badge>}
+                      {programaSel.duracion_meses && <Badge color={AZUL} icon="calendar-days">{programaSel.duracion_meses} {programaSel.duracion_meses === 1 ? 'mes' : 'meses'}</Badge>}
                     </div>
                   </div>
                 )}
               </div>
-              
+
               <div style={fieldRow()}>
                 <Field label="Fecha de inicio *" value={fechaInicio} onChange={setFechaInicio} type="date" half />
                 <Field label="Frecuencia de control" value={frecuencia} onChange={setFrecuencia} half
@@ -789,25 +755,27 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
                   ]} />
                 <Field label="Grupo nutricional" value={grupoNutri} onChange={setGrupoNutri} half
                   opts={[
-                    { v: 'B', l: '🟢 Grupo B — Conservador' },
-                    { v: 'A', l: '🟠 Grupo A — Bariátrico/Farmacológico' },
+                    { v: 'B', l: 'Grupo B — Conservador' },
+                    { v: 'A', l: 'Grupo A — Bariátrico / Farmacológico' },
                   ]} />
               </div>
-              
+
               {error && (
-                <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginTop: 14, fontSize: 13, color: B.red }}>
+                <div style={{ background: '#FFF0F0', border: '1px solid #FBD5D5', borderRadius: 10, padding: '10px 13px', marginTop: 8, fontSize: 12.5, lineHeight: 1.5, color: ROJO }}>
                   {error}
                 </div>
               )}
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
-                <button onClick={() => setPaso(1)} style={btnSecondary()}>← Volver</button>
-                <button 
-                  onClick={guardarYInvitar} 
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 20 }}>
+                <button onClick={() => setPaso(1)} style={btnSecondary()}>
+                  <Icon name="arrow-left" size={16} color="var(--ink-3)" /> Volver
+                </button>
+                <button
+                  onClick={guardarYInvitar}
                   disabled={guardando || !catalogoId}
-                  style={btnPrimary({ opacity: (!guardando && catalogoId) ? 1 : 0.5 })}
+                  style={btnPrimary({ opacity: (!guardando && catalogoId) ? 1 : 0.5, cursor: (!guardando && catalogoId) ? 'pointer' : 'not-allowed' })}
                 >
-                  {guardando ? 'Creando...' : '✓ Crear y enviar invitación'}
+                  {guardando ? 'Creando…' : <><Icon name="send" size={16} color="#fff" /> Crear y enviar invitación</>}
                 </button>
               </div>
             </>
@@ -824,21 +792,21 @@ function ModalNuevoPaciente({ usuario, onClose, onGuardado }) {
 function ModalRenovar({ paciente, onClose, onRenovado }) {
   const [meses, setMeses] = useState(3);
   const [guardando, setGuardando] = useState(false);
-  
+
   const renovar = async () => {
     setGuardando(true);
-    
+
     // 1. Finalizar el programa actual
     await supabase
       .from('programas_paciente')
       .update({ estado: 'finalizado', fecha_finalizacion: new Date().toISOString() })
       .eq('id', paciente.programa_id);
-    
+
     // 2. Crear nuevo programa con los mismos módulos
     const inicio = new Date();
     const venc = new Date();
     venc.setMonth(venc.getMonth() + meses);
-    
+
     await supabase.from('programas_paciente').insert([{
       paciente_id: paciente.paciente_id,
       catalogo_id: paciente.catalogo_id || null, // si no hay, lo creamos personalizado
@@ -852,7 +820,7 @@ function ModalRenovar({ paciente, onClose, onRenovado }) {
       estado: 'activo',
       programa_origen_id: paciente.programa_id,
     }]);
-    
+
     setGuardando(false);
     onRenovado();
   };
@@ -861,29 +829,36 @@ function ModalRenovar({ paciente, onClose, onRenovado }) {
     <div style={modalBg()}>
       <div style={modalCard(480)}>
         <div style={modalHeader()}>
-          <div style={{ color: 'white', fontWeight: 800, fontSize: 16 }}>
-            🔄 Renovar programa
-          </div>
-          <button onClick={onClose} style={btnClose()}>✕</button>
+          <p style={{ color: '#fff', fontWeight: 600, fontSize: 16, margin: 0, letterSpacing: '-.01em' }}>Renovar programa</p>
+          <BotonCerrar onClose={onClose} />
         </div>
-        
-        <div style={{ padding: '24px 28px' }}>
-          <p style={{ fontSize: 14, color: B.navy, margin: '0 0 16px' }}>
-            Renovando programa de <strong>{paciente.nombre}</strong>
-          </p>
-          
-          <Field label="Duración de la renovación" value={meses} onChange={v => setMeses(parseInt(v))}
+
+        <div style={{ padding: '22px 24px 24px' }}>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 12, padding: '12px 14px', marginBottom: 18 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0 }}>{paciente.nombre} {paciente.apellido || ''}</p>
+            <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '3px 0 0' }}>
+              {paciente.programa_nombre || 'Sin programa'}
+              {paciente.fecha_vencimiento && ` · vence ${formatDate(paciente.fecha_vencimiento)}`}
+            </p>
+          </div>
+
+          <Field label="Duración de la renovación" value={String(meses)} onChange={v => setMeses(parseInt(v))}
             opts={[
               { v: '1', l: '1 mes' },
               { v: '3', l: '3 meses' },
               { v: '6', l: '6 meses' },
               { v: '12', l: '12 meses' },
             ]} />
-          
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+
+          <p style={{ display: 'flex', alignItems: 'flex-start', gap: 7, fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 4 }}>
+            <Icon name="info" size={13} color="var(--ink-3)" style={{ marginTop: 1 }} />
+            El programa actual se marca como finalizado y se crea uno nuevo con los mismos módulos.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
             <button onClick={onClose} style={btnSecondary()}>Cancelar</button>
-            <button onClick={renovar} disabled={guardando} style={btnPrimary({ background: B.green })}>
-              {guardando ? 'Renovando...' : '✓ Renovar'}
+            <button onClick={renovar} disabled={guardando} style={btnPlano(VERDE)}>
+              {guardando ? 'Renovando…' : <><Icon name="refresh-cw" size={16} color="#fff" /> Renovar</>}
             </button>
           </div>
         </div>
@@ -897,31 +872,30 @@ function ModalRenovar({ paciente, onClose, onRenovado }) {
 // ════════════════════════════════════════════════════════════════════════
 function ModalSuspender({ paciente, onClose, onSuspendido }) {
   const [razon, setRazon] = useState('');
-  
+
   return (
     <div style={modalBg()}>
       <div style={modalCard(480)}>
-        <div style={{ ...modalHeader(), background: B.red }}>
-          <div style={{ color: 'white', fontWeight: 800, fontSize: 16 }}>
-            ⏸️ Suspender paciente
-          </div>
-          <button onClick={onClose} style={btnClose()}>✕</button>
+        <div style={modalHeader({ background: 'linear-gradient(180deg,#8E1A1A,' + ROJO + ')' })}>
+          <p style={{ color: '#fff', fontWeight: 600, fontSize: 16, margin: 0, letterSpacing: '-.01em' }}>Suspender paciente</p>
+          <BotonCerrar onClose={onClose} />
         </div>
-        
-        <div style={{ padding: '24px 28px' }}>
-          <p style={{ fontSize: 14, color: B.navy, margin: '0 0 6px' }}>
-            ¿Suspender el acceso de <strong>{paciente.nombre}</strong>?
+
+        <div style={{ padding: '22px 24px 24px' }}>
+          <p style={{ fontSize: 14, margin: '0 0 6px' }}>
+            ¿Suspender el acceso de <strong style={{ fontWeight: 600 }}>{paciente.nombre} {paciente.apellido || ''}</strong>?
           </p>
-          <p style={{ fontSize: 12, color: B.gray, margin: '0 0 16px' }}>
-            El paciente no podrá entrar a su app hasta que reactives su acceso.
+          <p style={{ fontSize: 12.5, color: 'var(--ink-2)', margin: '0 0 18px', lineHeight: 1.55 }}>
+            El paciente no podrá entrar a su app hasta que reactives su acceso. Su historia clínica no se
+            modifica y puedes reactivarlo en cualquier momento.
           </p>
-          
-          <Field label="Razón de suspensión" value={razon} onChange={setRazon} type="text" />
-          
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24 }}>
+
+          <Field label="Razón de suspensión" value={razon} onChange={setRazon} />
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
             <button onClick={onClose} style={btnSecondary()}>Cancelar</button>
-            <button onClick={() => onSuspendido(razon)} style={btnPrimary({ background: B.red })}>
-              ⏸️ Suspender
+            <button onClick={() => onSuspendido(razon)} style={btnPlano(ROJO)}>
+              <Icon name="pause" size={16} color="#fff" /> Suspender
             </button>
           </div>
         </div>
@@ -934,105 +908,43 @@ function ModalSuspender({ paciente, onClose, onSuspendido }) {
 // HELPERS DE UI
 // ════════════════════════════════════════════════════════════════════════
 const Field = ({ label, value, onChange, type = 'text', opts, half }) => (
-  <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
+  <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 14 }}>
     <label style={fieldLabel()}>{label}</label>
     {opts ? (
-      <select value={value} onChange={e => onChange(e.target.value)} style={inputStyle({ width: '100%' })}>
+      <select value={value} onChange={e => onChange(e.target.value)} style={inputStyle()}>
         {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     ) : (
-      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={inputStyle({ width: '100%' })} />
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} style={inputStyle()} />
     )}
   </div>
 );
 
+// Encabezado de sección: eyebrow con línea inferior, sin el filete azul a la izquierda.
 const SectionTitle = ({ children }) => (
-  <div style={{ borderLeft: `4px solid ${B.blue}`, paddingLeft: 10, marginBottom: 14, marginTop: 8 }}>
-    <p style={{ fontWeight: 800, fontSize: 11, color: B.navy, textTransform: 'uppercase', letterSpacing: 1.5, margin: 0 }}>
+  <div style={{ marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid var(--line-soft)' }}>
+    <p style={{ fontWeight: 600, fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.12em', margin: 0 }}>
       {children}
     </p>
   </div>
 );
 
-const fieldLabel = () => ({
-  display: 'block', fontSize: 10, fontWeight: 700, color: B.teal,
-  textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4,
-});
-
-const fieldRow = () => ({ display: 'flex', flexWrap: 'wrap', gap: '0 4%' });
-
-const inputStyle = (extra) => ({
-  padding: '9px 12px', border: `1.5px solid ${B.grayMd}`, borderRadius: 7,
-  fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
-  background: 'white', ...extra,
-});
-
-const btnPrimary = (extra) => ({
-  padding: '10px 22px', background: B.navy, color: 'white', border: 'none',
-  borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer',
-  fontFamily: 'inherit', ...extra,
-});
-
-const btnSecondary = () => ({
-  padding: '9px 20px', background: 'transparent', color: B.gray,
-  border: `2px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 13,
-  cursor: 'pointer', fontFamily: 'inherit',
-});
-
-const btnIcon = (color) => ({
-  padding: '6px 10px', background: color, color: 'white', border: 'none',
-  borderRadius: 6, fontWeight: 700, fontSize: 11, cursor: 'pointer',
-  fontFamily: 'inherit', whiteSpace: 'nowrap',
-});
-
-const btnIconSm = () => ({
-  padding: '6px 8px', background: B.white, color: B.navy,
-  border: `1px solid ${B.grayMd}`, borderRadius: 6, fontWeight: 700, fontSize: 12,
-  cursor: 'pointer', fontFamily: 'inherit',
-});
-
-const btnClose = () => ({
-  background: 'none', border: 'none', color: 'white', fontSize: 22,
-  cursor: 'pointer', lineHeight: 1, padding: 4,
-});
-
-const tableHeader = () => ({
-  display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'none' : 'grid', 
-  gridTemplateColumns: '50px 2fr 1.5fr 1.3fr 1fr 1fr 160px', gap: 12,
-  padding: '12px 16px', background: B.grayLt, borderBottom: `2px solid ${B.grayMd}`,
-  fontSize: 10, color: B.gray, textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.5,
-});
-
-const modalBg = () => ({
-  position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.7)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20,
-});
-
-const modalCard = (width) => ({
-  background: B.white, borderRadius: 16, width: '100%', maxWidth: width,
-  maxHeight: '92vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-});
-
-const modalHeader = () => ({
-  background: B.navy, padding: '16px 24px', borderRadius: '16px 16px 0 0',
-  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  position: 'sticky', top: 0, zIndex: 10,
-});
+const Badge = ({ color, icon, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 24, padding: '0 10px', borderRadius: 8, background: color + '14', color, fontSize: 11.5, fontWeight: 500, whiteSpace: 'nowrap' }}>
+    <Icon name={icon} size={12} /> {children}
+  </span>
+);
 
 const stepperItem = (active) => ({
-  flex: 1, padding: '10px 12px', fontSize: 11, fontWeight: 700,
-  color: active ? B.navy : B.gray, textTransform: 'uppercase', letterSpacing: 0.3,
-  borderBottom: `3px solid ${active ? B.blue : 'transparent'}`,
-});
-
-const badgeStyle = (color) => ({
-  background: color + '22', color: color, padding: '3px 8px',
-  borderRadius: 10, fontSize: 11, fontWeight: 700,
+  flex: 1, padding: '11px 4px', fontSize: 11.5, fontWeight: active ? 600 : 500,
+  color: active ? 'var(--ink)' : 'var(--ink-3)',
+  borderBottom: `2px solid ${active ? 'var(--accent)' : 'transparent'}`,
+  marginBottom: -1,
 });
 
 // Helpers de fecha
 function formatDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
-  return `${d.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][d.getMonth()]} ${d.getFullYear()}`;
+  return `${d.getDate()} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}`;
 }
