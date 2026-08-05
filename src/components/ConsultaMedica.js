@@ -247,23 +247,23 @@ function ConsultaCard({ consulta: c, paciente, onEditar }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 12 }}>
           <button onClick={e => { e.stopPropagation(); onEditar && onEditar(); }}
-            style={{ padding: '5px 12px', background: B.blue + '11', color: B.blue, border: `1px solid ${B.blue}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Editar
+            style={{ padding: '5px 12px', background: B.blue + '11', color: B.blue, border: `1px solid ${B.blue}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="pencil" size={13} /> Editar
           </button>
           <button onClick={e => { e.stopPropagation(); imprimirConsulta(paciente, c, diagnosticos, medicamentos, examLab, examImg); }}
-            style={{ padding: '5px 12px', background: B.navy + '11', color: B.navy, border: `1px solid ${B.navy}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-            Imprimir
+            style={{ padding: '5px 12px', background: B.navy + '11', color: B.navy, border: `1px solid ${B.navy}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name="printer" size={13} /> Imprimir
           </button>
           {medicamentos.length > 0 && (
             <button onClick={e => { e.stopPropagation(); imprimirReceta(paciente, c, medicamentos); }}
-              style={{ padding: '5px 12px', background: B.green + '11', color: B.green, border: `1px solid ${B.green}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Receta
+              style={{ padding: '5px 12px', background: B.green + '11', color: B.green, border: `1px solid ${B.green}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="pill" size={13} /> Receta
             </button>
           )}
           {(examLab.length > 0 || examImg.length > 0) && (
             <button onClick={e => { e.stopPropagation(); imprimirExamenes(paciente, c, examLab, examImg); }}
-              style={{ padding: '5px 12px', background: B.blue + '11', color: B.blue, border: `1px solid ${B.blue}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Exámenes
+              style={{ padding: '5px 12px', background: B.blue + '11', color: B.blue, border: `1px solid ${B.blue}33`, borderRadius: 6, fontWeight: 600, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="test-tube" size={13} /> Exámenes
             </button>
           )}
           <span style={{ color: B.navy, fontSize: 18 }}>{open ? '▲' : '▼'}</span>
@@ -612,8 +612,8 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={guardar} disabled={guardando}
-              style={{ padding: '8px 20px', background: B.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {guardando ? 'Guardando...' : 'Guardar consulta'}
+              style={{ padding: '8px 20px', background: B.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              {guardando ? 'Guardando…' : <><Icon name="save" size={15} /> Guardar consulta</>}
             </button>
             <button onClick={onClose}
               style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: 22, cursor: 'pointer', borderRadius: 6, padding: '4px 10px' }}>✕</button>
@@ -831,12 +831,12 @@ function ModalConsulta({ paciente, usuario, onClose, onGuardado }) {
             <div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                 <button onClick={() => setTabExamen('lab')}
-                  style={{ padding: '8px 20px', background: tabExamen === 'lab' ? B.blue : B.white, color: tabExamen === 'lab' ? 'white' : B.blue, border: `2px solid ${B.blue}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Laboratorio ({examLab.length})
+                  style={{ padding: '8px 20px', background: tabExamen === 'lab' ? B.blue : B.white, color: tabExamen === 'lab' ? 'white' : B.blue, border: `2px solid ${B.blue}`, borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <Icon name="test-tube" size={14} /> Laboratorio ({examLab.length})
                 </button>
                 <button onClick={() => setTabExamen('imagen')}
-                  style={{ padding: '8px 20px', background: tabExamen === 'imagen' ? '#7B2D8B' : B.white, color: tabExamen === 'imagen' ? 'white' : '#7B2D8B', border: `2px solid #7B2D8B`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Imágenes ({examImg.length})
+                  style={{ padding: '8px 20px', background: tabExamen === 'imagen' ? '#7B2D8B' : B.white, color: tabExamen === 'imagen' ? 'white' : '#7B2D8B', border: `2px solid #7B2D8B`, display: 'inline-flex', alignItems: 'center', gap: 7, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <Icon name="scan" size={14} /> Imágenes ({examImg.length})
                 </button>
               </div>
               {tabExamen === 'lab' && Object.entries(EXAMENES_LAB).map(([grupo, items]) => (
@@ -1233,8 +1233,8 @@ function ModalEditarConsulta({ paciente, consulta, usuario, onClose, onGuardado 
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={guardar} disabled={guardando}
-              style={{ padding: '8px 20px', background: B.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {guardando ? 'Guardando...' : 'Guardar cambios'}
+              style={{ padding: '8px 20px', background: B.green, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              {guardando ? 'Guardando…' : <><Icon name="save" size={15} /> Guardar cambios</>}
             </button>
             <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', fontSize: 22, cursor: 'pointer', borderRadius: 6, padding: '4px 10px' }}>✕</button>
           </div>
@@ -1356,8 +1356,8 @@ function ModalEditarConsulta({ paciente, consulta, usuario, onClose, onGuardado 
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
                 <button onClick={guardar} disabled={guardando}
-                  style={{ padding: '10px 28px', background: guardando ? '#9AA5B1' : B.teal, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: guardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                  {guardando ? 'Guardando...' : 'Guardar cambios'}
+                  style={{ padding: '10px 28px', background: guardando ? '#9AA5B1' : B.teal, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: guardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  {guardando ? 'Guardando…' : <><Icon name="save" size={15} /> Guardar cambios</>}
                 </button>
               </div>
             </div>
