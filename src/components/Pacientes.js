@@ -1,30 +1,55 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { Search, Users, ClipboardList, IdCard, X, Check, Plus, Stethoscope } from 'lucide-react';
 
-const B = { navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70', grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF', green: '#1A7A4A', red: '#B02020', orange: '#C25A00' };
-const planColors = { starter: B.teal, standard: B.blue, imc360: B.navy };
+// ═══════════════════════════════════════════════════════════════════════
+// Pacientes — capa visual v2 ("clínico premium", aprobada 04/08/2026)
+//
+// Lo que NO cambió: props, estados, queries a Supabase, nombres de campo del
+// insert, filtros, cálculo de edad y el patrón de <Field> fuera del componente.
+// Lo que cambió: sólo la presentación — tokens de src/styles/v2.css en lugar de
+// la constante B, iconos lucide-react en lugar de emoji, jerarquía por elevación
+// en lugar de borde de 1.5px, y fuera el filete de color superior en la tarjeta.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Colores semánticos que siguen siendo datos, no estilo: identifican plan y grupo.
+const planColors = { starter: '#4B647A', standard: '#1E7CB5', imc360: '#0B1F3B' };
 const planLabels = { starter: 'Starter $80', standard: 'Standard $250/mes', imc360: 'IMC 360 $400/mes' };
-const grupoColors = { transformacion: B.blue, prequirurgico: B.orange, postquirurgico: B.green };
+const grupoColors = { transformacion: '#1E7CB5', prequirurgico: '#C25A00', postquirurgico: '#1A7A4A' };
 const grupoLabels = { transformacion: 'Transformación', prequirurgico: 'Pre-quirúrgico', postquirurgico: 'Post-quirúrgico' };
 const calcAge = dob => dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000)) : 0;
 
+const ROJO = '#B02020';
+
 // ── FIELD — definido FUERA de cualquier componente para evitar re-renders ──────
 const Field = ({ label, value, onChange, type = 'text', opts, half, required }) => (
-  <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 12 }}>
-    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: B.teal, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-      {label}{required && <span style={{ color: B.red }}> *</span>}
+  <div style={{ flex: half ? '0 0 48%' : '0 0 100%', marginBottom: 14 }}>
+    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '.06em', marginBottom: 6 }}>
+      {label}{required && <span style={{ color: ROJO }}> *</span>}
     </label>
     {opts ? (
       <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}>
+        style={{ width: '100%', height: 40, padding: '0 10px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface)', fontSize: 13.5, color: 'var(--ink)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}>
         {opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
       </select>
     ) : (
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${B.grayMd}`, borderRadius: 6, fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+        style={{ width: '100%', height: 40, padding: '0 12px', border: '1px solid var(--line)', borderRadius: 10, background: 'var(--surface)', fontSize: 13.5, color: 'var(--ink)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
     )}
   </div>
 );
+
+// Píldora de dato (plan, grupo): color como información, no como decoración.
+const Pildora = ({ color, children }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 10px', borderRadius: 8, background: color + '14', color, fontSize: 11.5, fontWeight: 500, whiteSpace: 'nowrap' }}>
+    {children}
+  </span>
+);
+
+const selectFiltro = {
+  height: 40, padding: '0 12px', borderRadius: 10, border: '1px solid var(--line)',
+  background: 'var(--surface)', fontSize: 13.5, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit',
+};
 
 // ── PACIENTES ──────────────────────────────────────────────────────────────────
 export default function Pacientes({ onAbrirPaciente, usuario }) {
@@ -44,7 +69,7 @@ export default function Pacientes({ onAbrirPaciente, usuario }) {
     setLoading(false);
   };
 
-  const showToast = (msg, color = B.green) => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+  const showToast = (msg, color = '#1A7A4A') => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
 
   const filtrados = pacientes.filter(p => {
     const q = busqueda.toLowerCase();
@@ -58,70 +83,105 @@ export default function Pacientes({ onAbrirPaciente, usuario }) {
   });
 
   return (
-    <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div style={{ padding: 28, maxWidth: 1180, margin: '0 auto', fontFamily: 'Poppins, system-ui, sans-serif', color: 'var(--ink)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 22, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: B.navy, margin: '0 0 4px' }}>Pacientes</h2>
-          <p style={{ fontSize: 13, color: B.gray, margin: 0 }}>{pacientes.length} paciente{pacientes.length !== 1 ? 's' : ''} registrado{pacientes.length !== 1 ? 's' : ''}</p>
+          <h2 style={{ fontSize: 25, fontWeight: 600, letterSpacing: '-.02em', margin: '0 0 5px' }}>Pacientes</h2>
+          <p style={{ fontSize: 13.5, color: 'var(--ink-2)', margin: 0 }}>
+            {pacientes.length} paciente{pacientes.length !== 1 ? 's' : ''} registrado{pacientes.length !== 1 ? 's' : ''}
+            {filtrados.length !== pacientes.length && ` · ${filtrados.length} en el filtro actual`}
+          </p>
         </div>
         <button onClick={() => setModalNuevo(true)}
-          style={{ padding: '10px 22px', background: B.navy, color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + Nuevo paciente
+          style={{ height: 40, padding: '0 18px', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(180deg,#14355F,var(--ink))', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 8px 18px -10px rgba(11,31,59,.55)', transition: 'filter .14s ease' }}
+          onMouseEnter={e => e.currentTarget.style.filter = 'brightness(1.12)'}
+          onMouseLeave={e => e.currentTarget.style.filter = 'brightness(1)'}>
+          <Plus size={16} strokeWidth={1.75} /> Nuevo paciente
         </button>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
-          placeholder="🔍  Buscar por nombre, cédula o historia clínica..."
-          style={{ flex: 1, minWidth: 260, padding: '10px 16px', borderRadius: 8, border: `1.5px solid ${B.grayMd}`, fontSize: 14, outline: 'none', fontFamily: 'inherit' }} />
-        <select value={filtroPlan} onChange={e => setFiltroPlan(e.target.value)}
-          style={{ padding: '10px 12px', borderRadius: 8, border: `1.5px solid ${B.grayMd}`, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 280 }}>
+          <span style={{ position: 'absolute', left: 13, color: 'var(--ink-3)', display: 'flex', pointerEvents: 'none' }}>
+            <Search size={16} strokeWidth={1.75} />
+          </span>
+          <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, cédula o historia clínica"
+            style={{ width: '100%', height: 40, padding: '0 12px 0 38px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 13.5, color: 'var(--ink)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+        </div>
+        <select value={filtroPlan} onChange={e => setFiltroPlan(e.target.value)} style={selectFiltro}>
           <option value="all">Todos los planes</option>
           {Object.entries(planLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)}
-          style={{ padding: '10px 12px', borderRadius: 8, border: `1.5px solid ${B.grayMd}`, fontSize: 13, outline: 'none', fontFamily: 'inherit' }}>
+        <select value={filtroGrupo} onChange={e => setFiltroGrupo(e.target.value)} style={selectFiltro}>
           <option value="all">Todos los grupos</option>
           {Object.entries(grupoLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
 
       {loading ? (
-        <p style={{ textAlign: 'center', color: B.gray, padding: 60 }}>Cargando pacientes...</p>
+        <p style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 60, fontSize: 13.5 }}>Cargando pacientes…</p>
       ) : filtrados.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60 }}>
-          <p style={{ fontSize: 48, marginBottom: 12 }}>👥</p>
-          <p style={{ color: B.gray }}>{pacientes.length === 0 ? 'Registra tu primer paciente.' : 'Sin resultados para esta búsqueda.'}</p>
+        <div style={{ textAlign: 'center', padding: '60px 24px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, boxShadow: '0 1px 2px rgba(11,31,59,.05)' }}>
+          <span style={{ display: 'inline-flex', width: 48, height: 48, borderRadius: 14, background: 'var(--accent-wash)', color: 'var(--accent)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <Users size={22} strokeWidth={1.75} />
+          </span>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
+            {pacientes.length === 0 ? 'Aún no hay pacientes' : 'Sin resultados'}
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--ink-3)', margin: '6px 0 0' }}>
+            {pacientes.length === 0 ? 'Registra tu primer paciente para empezar.' : 'Prueba con otro término o quita los filtros.'}
+          </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(296px,1fr))', gap: 14 }}>
           {filtrados.map(p => {
             const age = calcAge(p.fecha_nacimiento);
             return (
               <div key={p.id} onClick={() => onAbrirPaciente(p)}
-                style={{ background: B.white, borderRadius: 12, border: `1.5px solid ${B.grayMd}`, padding: '18px 18px', cursor: 'pointer', borderTop: `3px solid ${planColors[p.plan] || B.blue}`, transition: 'box-shadow .15s' }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(30,124,181,0.15)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 21, background: B.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: 18 }}>
+                style={{ background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--line)', padding: 18, cursor: 'pointer', boxShadow: '0 1px 2px rgba(11,31,59,.05)', transition: 'box-shadow .14s ease, border-color .14s ease' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(11,31,59,.04), 0 14px 30px -18px rgba(11,31,59,.22)'; e.currentTarget.style.borderColor = '#CFDCEA'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 2px rgba(11,31,59,.05)'; e.currentTarget.style.borderColor = 'var(--line)'; }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(180deg,#14355F,var(--ink))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 600, fontSize: 17, flexShrink: 0 }}>
                     {p.nombre?.charAt(0)?.toUpperCase()}
                   </div>
-                  <span style={{ background: (grupoColors[p.grupo] || B.blue) + '22', color: grupoColors[p.grupo] || B.blue, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${(grupoColors[p.grupo] || B.blue)}44` }}>
-                    {grupoLabels[p.grupo] || '—'}
-                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ fontWeight: 600, fontSize: 15, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.nombre} {p.apellido}
+                    </p>
+                    <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: '2px 0 0' }}>
+                      {age > 0 ? `${age} años` : '—'} · {p.sexo === 'F' ? 'Femenino' : p.sexo === 'M' ? 'Masculino' : '—'}
+                    </p>
+                  </div>
                 </div>
-                <p style={{ fontWeight: 800, fontSize: 15, color: B.navy, margin: '0 0 3px' }}>{p.nombre} {p.apellido}</p>
-                <p style={{ fontSize: 12, color: B.gray, margin: '0 0 6px' }}>
-                  {age > 0 ? `${age} años` : '—'} · {p.sexo === 'F' ? 'Femenino' : p.sexo === 'M' ? 'Masculino' : '—'}
-                </p>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
-                  {p.historia_clinica && <span style={{ fontSize: 10, background: B.grayLt, color: B.teal, padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>📋 {p.historia_clinica}</span>}
-                  {p.cedula && <span style={{ fontSize: 10, background: B.grayLt, color: B.gray, padding: '2px 8px', borderRadius: 10 }}>🪪 {p.cedula}</span>}
+
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <Pildora color={grupoColors[p.grupo] || '#1E7CB5'}>{grupoLabels[p.grupo] || '—'}</Pildora>
+                  <Pildora color={planColors[p.plan] || '#1E7CB5'}>{planLabels[p.plan] || '—'}</Pildora>
                 </div>
-                <span style={{ background: (planColors[p.plan] || B.blue) + '22', color: planColors[p.plan] || B.blue, padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, border: `1px solid ${(planColors[p.plan] || B.blue)}44` }}>
-                  {planLabels[p.plan] || '—'}
-                </span>
-                {p.diagnostico_principal && <p style={{ fontSize: 11, color: B.teal, margin: '6px 0 0' }}>Dx: {p.diagnostico_principal}</p>}
+
+                {(p.historia_clinica || p.cedula) && (
+                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid var(--line-soft)' }}>
+                    {p.historia_clinica && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}>
+                        <ClipboardList size={13} strokeWidth={1.75} color="var(--ink-3)" /> {p.historia_clinica}
+                      </span>
+                    )}
+                    {p.cedula && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-2)' }}>
+                        <IdCard size={13} strokeWidth={1.75} color="var(--ink-3)" /> {p.cedula}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {p.diagnostico_principal && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 10 }}>
+                    <Stethoscope size={13} strokeWidth={1.75} color="var(--ink-3)" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <p style={{ fontSize: 12, color: 'var(--ink-2)', margin: 0, lineHeight: 1.45 }}>{p.diagnostico_principal}</p>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -131,12 +191,17 @@ export default function Pacientes({ onAbrirPaciente, usuario }) {
       {modalNuevo && (
         <ModalNuevoPaciente
           onClose={() => setModalNuevo(false)}
-          onGuardado={() => { fetchPacientes(); setModalNuevo(false); showToast('Paciente registrado ✓'); }}
+          onGuardado={() => { fetchPacientes(); setModalNuevo(false); showToast('Paciente registrado'); }}
           usuario={usuario}
         />
       )}
 
-      {toast && <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: toast.color, color: 'white', padding: '12px 28px', borderRadius: 30, fontWeight: 700, fontSize: 13, zIndex: 9999 }}>{toast.msg}</div>}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 9, background: 'var(--ink)', color: '#fff', padding: '12px 20px', borderRadius: 12, fontWeight: 500, fontSize: 13.5, zIndex: 9999, boxShadow: '0 18px 40px -24px rgba(11,31,59,.55)' }}>
+          <Check size={16} strokeWidth={2} color={toast.color === ROJO ? '#FCA5A5' : '#6EE7A8'} />
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }
@@ -164,9 +229,10 @@ function ModalNuevoPaciente({ onClose, onGuardado, usuario }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
+  // Encabezado de sección: eyebrow tipográfico, sin el filete de color a la izquierda.
   const Sec = ({ children }) => (
-    <div style={{ borderLeft: `4px solid ${B.blue}`, paddingLeft: 10, marginBottom: 14, marginTop: 20 }}>
-      <p style={{ fontWeight: 800, fontSize: 11, color: B.navy, textTransform: 'uppercase', letterSpacing: 1.5, margin: 0 }}>{children}</p>
+    <div style={{ marginBottom: 14, marginTop: 24, paddingBottom: 8, borderBottom: '1px solid var(--line-soft)' }}>
+      <p style={{ fontWeight: 600, fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.12em', margin: 0 }}>{children}</p>
     </div>
   );
 
@@ -187,18 +253,21 @@ function ModalNuevoPaciente({ onClose, onGuardado, usuario }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-      <div style={{ background: B.white, borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
-        <div style={{ background: B.navy, padding: '18px 24px', borderRadius: '16px 16px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
-          <p style={{ color: 'white', fontWeight: 800, fontSize: 16, margin: 0 }}>Nuevo Paciente</p>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'white', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.55)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20, fontFamily: 'Poppins, system-ui, sans-serif', color: 'var(--ink)' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 18, width: '100%', maxWidth: 680, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 40px 90px -30px rgba(11,31,59,.6)' }}>
+        <div style={{ background: 'linear-gradient(180deg,#14355F,var(--ink))', padding: '18px 24px', borderRadius: '18px 18px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+          <p style={{ color: '#fff', fontWeight: 600, fontSize: 16, margin: 0, letterSpacing: '-.01em' }}>Nuevo paciente</p>
+          <button onClick={onClose} aria-label="Cerrar"
+            style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.1)', border: 'none', borderRadius: 9, color: '#fff', cursor: 'pointer' }}>
+            <X size={16} strokeWidth={2} />
+          </button>
         </div>
 
-        <div style={{ padding: '24px 28px' }}>
-          <Sec>Datos Personales</Sec>
+        <div style={{ padding: '20px 28px 28px' }}>
+          <Sec>Datos personales</Sec>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
-            <Field label="Nombre *" value={nombre} onChange={setNombre} half required />
-            <Field label="Apellido *" value={apellido} onChange={setApellido} half required />
+            <Field label="Nombre" value={nombre} onChange={setNombre} half required />
+            <Field label="Apellido" value={apellido} onChange={setApellido} half required />
             <Field label="Cédula" value={cedula} onChange={setCedula} half />
             <Field label="Fecha de nacimiento" value={fechaNacimiento} onChange={setFechaNacimiento} type="date" half />
             <Field label="Sexo" value={sexo} onChange={setSexo} opts={[{ v: '', l: '—' }, { v: 'M', l: 'Masculino' }, { v: 'F', l: 'Femenino' }, { v: 'O', l: 'Otro' }]} half />
@@ -215,7 +284,7 @@ function ModalNuevoPaciente({ onClose, onGuardado, usuario }) {
               opts={[{ v: 'starter', l: 'Starter Plan — $80' }, { v: 'standard', l: 'Standard IMC — $250/mes' }, { v: 'imc360', l: 'IMC 360 — $400/mes' }]} half />
           </div>
 
-          <Sec>Datos Clínicos</Sec>
+          <Sec>Datos clínicos</Sec>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0 4%' }}>
             <Field label="Diagnóstico principal" value={diagnostico} onChange={setDiagnostico} />
             <Field label="Cirugía / procedimiento" value={cirugia} onChange={setCirugia} half />
@@ -227,13 +296,20 @@ function ModalNuevoPaciente({ onClose, onGuardado, usuario }) {
             <Field label="Medicamentos actuales" value={medicamentos} onChange={setMedicamentos} half />
           </div>
 
-          {error && <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: B.red }}>{error}</div>}
+          {error && (
+            <div style={{ background: '#FFF0F0', border: '1px solid #FBD5D5', borderRadius: 10, padding: '10px 13px', marginTop: 6, marginBottom: 14, fontSize: 12.5, lineHeight: 1.5, color: ROJO }}>
+              {error}
+            </div>
+          )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-            <button onClick={onClose} style={{ padding: '9px 20px', background: 'transparent', color: B.gray, border: `2px solid ${B.grayMd}`, borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button onClick={onClose}
+              style={{ height: 40, padding: '0 18px', background: 'var(--surface)', color: 'var(--ink-2)', border: '1px solid var(--line)', borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Cancelar
+            </button>
             <button onClick={guardar} disabled={guardando}
-              style={{ padding: '9px 22px', background: guardando ? '#9AA5B1' : B.navy, color: 'white', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: guardando ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-              {guardando ? 'Guardando...' : 'Registrar paciente ✓'}
+              style={{ height: 40, padding: '0 20px', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(180deg,#14355F,var(--ink))', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13.5, cursor: guardando ? 'not-allowed' : 'pointer', opacity: guardando ? .7 : 1, fontFamily: 'inherit', boxShadow: '0 8px 18px -10px rgba(11,31,59,.55)' }}>
+              {guardando ? 'Guardando…' : <><Check size={16} strokeWidth={2} /> Registrar paciente</>}
             </button>
           </div>
         </div>
