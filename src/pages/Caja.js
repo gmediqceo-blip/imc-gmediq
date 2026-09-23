@@ -789,7 +789,7 @@ function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobi
             <strong style={{ fontSize: 15, color: color(m) }}>
               {signo(m)} $ {money(m.monto)}
             </strong>
-            {enTransito(m) && esGerente && (
+            {enTransito(m) && (
               <button onClick={() => setConfirmando(m)}
                 style={{
                   display: 'block', marginLeft: 'auto', marginTop: 6,
