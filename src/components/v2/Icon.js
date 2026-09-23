@@ -13,7 +13,7 @@ import {
   Printer, Phone, MessageCircle, ChevronLeft, ChevronDown, ChevronUp,
   Home, Settings, HelpCircle, Info, AlertCircle, AlertTriangle,
   Clock, MapPin, Building, User, UserPlus, Copy, Download, Upload,
-  Save, MoreHorizontal, MoreVertical,
+  Save, MoreHorizontal, MoreVertical, Wallet,
 } from 'lucide-react';
 
 // Mapa de nombres del mockup → componentes Lucide reales
@@ -22,6 +22,7 @@ const iconMap = {
   'calendar-days': CalendarDays,
   dumbbell: Dumbbell,
   'user-cog': UserCog,
+  wallet: Wallet,
   'log-out': LogOut,
   'flask-conical': FlaskConical,
   plus: Plus,

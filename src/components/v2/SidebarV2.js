@@ -14,6 +14,9 @@ const NAV = [
     { key: 'banco_ejercicios', label: 'Ejercicios', icon: 'dumbbell' },
     { key: 'usuarios', label: 'Equipo', icon: 'user-cog' },
   ]},
+  { grupo: 'Administración', items: [
+    { key: 'caja', label: 'Caja', icon: 'wallet' },
+  ]},
 ];
 
 const ROL_LABEL = {
@@ -25,12 +28,14 @@ const ROL_LABEL = {
   cosmetologa: 'Cosmetóloga',
 };
 
-export default function SidebarV2({ active, onSelect, usuario, onLogout, onAbrirPerfil }) {
-  // Filtrar items según rol (Equipo solo para admin)
+export default function SidebarV2({ active, onSelect, usuario, onLogout, onAbrirPerfil, miembroCaja }) {
+  // Filtrar items según rol (Equipo solo para admin, Caja solo para
+  // quien esté dado de alta en el módulo)
   const navFiltered = NAV.map(g => ({
     ...g,
     items: g.items.filter(it => {
       if (it.key === 'usuarios' && usuario?.rol !== 'admin') return false;
+      if (it.key === 'caja' && !miembroCaja) return false;
       return true;
     }),
   })).filter(g => g.items.length > 0);

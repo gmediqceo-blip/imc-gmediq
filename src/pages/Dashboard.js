@@ -4,6 +4,9 @@ import Pacientes from '../components/PanelGestionPacientes';
 import PacienteDetalle from '../components/PacienteDetalle';
 import Usuarios from './Usuarios';
 import Agenda from './Agenda';
+import Caja from './Caja';
+import ErrorBoundary from '../components/v2/ErrorBoundary';
+import { getMiembro } from '../lib/caja';
 import DashboardPaciente from '../components/DashboardPaciente';
 import CambiarPassword from '../components/CambiarPassword';
 import SidebarV2 from '../components/v2/SidebarV2';
@@ -25,6 +28,7 @@ function useIsMobile() {
 
 export default function Dashboard({ session }) {
   const [usuario, setUsuario] = useState(null);
+  const [miembroCaja, setMiembroCaja] = useState(null);
   const [paciente, setPaciente] = useState(null);
   const [cuenta, setCuenta] = useState('cargando'); // cargando | staff | paciente | desconocida
   const [screen, setScreen] = useState('pacientes');
@@ -35,13 +39,20 @@ export default function Dashboard({ session }) {
 
   useEffect(() => {
     const fetchUsuario = async () => {
+      // El módulo de caja tiene su propia lista de miembros: se puede ser
+      // personal de la clínica y no estar en caja, o al revés.
+      const miembro = await getMiembro(session.user.id);
+      setMiembroCaja(miembro);
       // 1) ¿Es personal de la clínica?
       const { data } = await supabase.from('usuarios').select('*').eq('id', session.user.id).maybeSingle();
       if (data) { setUsuario(data); setCuenta('staff'); return; }
       // 2) ¿Es un paciente con acceso?
       const { data: pac } = await supabase.from('pacientes').select('*').eq('user_id', session.user.id).maybeSingle();
       if (pac) { setPaciente(pac); setCuenta('paciente'); return; }
-      // 3) Cuenta sin configurar
+      // 3) ¿Solo caja? Es el caso de la secretaria de Gmediq: entra a
+      //    registrar plata y no ve nada de la clínica.
+      if (miembro) { setCuenta('caja'); return; }
+      // 4) Cuenta sin configurar
       setCuenta('desconocida');
     };
     fetchUsuario();
@@ -84,6 +95,25 @@ export default function Dashboard({ session }) {
     }
     return <DashboardPaciente paciente={paciente} onLogout={handleLogout} />;
   }
+  // Cuenta solo de caja: sin nada de la clínica, ni en pantalla ni en la base.
+  if (cuenta === 'caja' && miembroCaja) {
+    return (
+      <div style={{ minHeight: '100vh', background: B.grayLt, fontFamily: "'Poppins', 'Segoe UI', Arial, sans-serif" }}>
+        <div style={{ background: B.navy, padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ color: 'white', fontWeight: 800, fontSize: 15, margin: 0 }}>Caja</p>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0 }}>{miembroCaja.nombre}</p>
+          </div>
+          <button onClick={handleLogout}
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Salir
+          </button>
+        </div>
+        <ErrorBoundary seccion="Caja"><Caja miembro={miembroCaja} /></ErrorBoundary>
+      </div>
+    );
+  }
+
   if (cuenta === 'desconocida') {
     return (
       <div style={{ minHeight: '100vh', background: B.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', Arial, sans-serif", padding: 20 }}>
@@ -108,6 +138,7 @@ export default function Dashboard({ session }) {
     { key: 'pacientes', label: '👥 Pacientes' },
     { key: 'banco_ejercicios', label: '🏋️ Ejercicios' },
     { key: 'agenda', label: '📅 Agenda' },
+    ...(miembroCaja ? [{ key: 'caja', label: '💵 Caja' }] : []),
     ...(usuario?.rol === 'admin' ? [{ key: 'usuarios', label: '👤 Usuarios' }] : []),
   ];
 
@@ -128,6 +159,7 @@ export default function Dashboard({ session }) {
           active={screen}
           onSelect={irA}
           usuario={usuario}
+          miembroCaja={miembroCaja}
           onLogout={handleLogout}
           onAbrirPerfil={() => setModalPerfil(true)}
         />
@@ -280,6 +312,9 @@ export default function Dashboard({ session }) {
         )}
         {screen === 'banco_ejercicios' && <BancoEjercicios usuario={usuario} />}
         {screen === 'agenda' && <Agenda usuario={usuario} onAbrirPaciente={abrirPaciente} />}
+        {screen === 'caja' && miembroCaja && (
+          <ErrorBoundary seccion="Caja"><Caja miembro={miembroCaja} /></ErrorBoundary>
+        )}
         {screen === 'usuarios' && <Usuarios usuarioActual={usuario} />}
       </div>
 
