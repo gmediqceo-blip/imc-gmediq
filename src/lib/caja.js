@@ -77,10 +77,11 @@ export async function getMovimientos({ desde, hasta, limite = 100 } = {}) {
   let q = supabase
     .from('caja_movimientos')
     .select(`*,
-             cuenta:cuenta_id (nombre),
+             cuenta:cuenta_id (nombre, tipo),
              destino:cuenta_destino_id (nombre),
              categoria:categoria_id (nombre),
-             caso:caso_id (paciente)`)
+             caso:caso_id (paciente),
+             liquidacion:liquidacion_id (fecha, monto_recibido)`)
     .order('fecha', { ascending: false })
     .order('creado_en', { ascending: false })
     .limit(limite);
@@ -111,6 +112,25 @@ export async function anularMovimiento(id, motivo, userId) {
     })
     .eq('id', id);
   return error;
+}
+
+// ── Cobros con tarjeta ───────────────────────────────────────────────
+// Un cobro con tarjeta espera en Datafast, PayPhone o Bendo hasta que
+// la plataforma lo deposita. Confirmarlo crea el traslado al banco; la
+// comisión sale sola de la diferencia.
+export function enTransito(m) {
+  return m.tipo === 'ingreso' && !m.anulado
+    && m.cuenta?.tipo === 'transito' && !m.liquidacion_id;
+}
+
+export async function liquidarCobros({ ingresos, cuentaDestinoId, montoRecibido, fecha }) {
+  const { data, error } = await supabase.rpc('caja_liquidar', {
+    p_ingresos: ingresos,
+    p_cuenta_destino: cuentaDestinoId,
+    p_monto_recibido: montoRecibido,
+    p_fecha: fecha,
+  });
+  return { data, error };
 }
 
 export async function crearCaso(caso, userId) {

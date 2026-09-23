@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  EMPRESAS, TIPOS, money,
+  EMPRESAS, TIPOS, money, enTransito,
   getCuentas, getCategorias, getCasosAbiertos,
   getPanel, getSaldos, getMovimientos, crearMovimiento, anularMovimiento,
+  liquidarCobros,
 } from '../lib/caja';
 
 const B = {
@@ -557,8 +558,175 @@ function Balance({ isMobile }) {
   );
 }
 
-function Lista({ movimientos, miembro, onCambio, isMobile }) {
+// =====================================================================
+//  CONFIRMAR EL DEPÓSITO DE UN COBRO CON TARJETA
+//
+//  Se abre con un cobro, pero deja marcar los demás de la misma
+//  plataforma: Datafast no deposita consumo por consumo, deposita el
+//  lote. Y lo que llega casi nunca es lo cobrado — por eso el monto se
+//  puede corregir, y la diferencia queda registrada como comisión.
+// =====================================================================
+function ConfirmarDeposito({ cobro, todos, cuentas, onCerrar, onHecho, isMobile }) {
+  const hermanos = todos.filter((m) =>
+    enTransito(m) && m.cuenta_id === cobro.cuenta_id && m.id !== cobro.id);
+  const candidatos = [cobro, ...hermanos];
+  const totalDe = (ids) => candidatos
+    .filter((m) => ids.includes(m.id))
+    .reduce((s, m) => s + Number(m.monto), 0);
+
+  const bancos = cuentas.filter((c) => c.tipo !== 'transito');
+  const [marcados, setMarcados] = useState([cobro.id]);
+  const [recibido, setRecibido] = useState(Number(cobro.monto).toFixed(2));
+  const [destino, setDestino] = useState(bancos[0]?.id || '');
+  const [fecha, setFecha] = useState(hoy());
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+
+  const esperado = totalDe(marcados);
+  const recibidoNum = parseFloat(String(recibido).replace(',', '.'));
+  const diferencia = esperado - (isNaN(recibidoNum) ? esperado : recibidoNum);
+
+  // Lo que se espera es el punto de partida de lo que llegó: si cambia
+  // lo que entra al depósito, el monto tiene que seguirlo.
+  const alternar = (id) => {
+    const sig = marcados.includes(id)
+      ? marcados.filter((x) => x !== id)
+      : [...marcados, id];
+    setMarcados(sig);
+    setRecibido(totalDe(sig).toFixed(2));
+  };
+
+  const confirmar = async () => {
+    setError(null);
+    if (!marcados.length) return setError('Marca al menos un cobro.');
+    if (!destino) return setError('Elige a qué cuenta llegó el depósito.');
+    if (!recibidoNum || recibidoNum <= 0) return setError('Pon cuánto llegó a la cuenta.');
+    if (recibidoNum > esperado + 0.005) {
+      return setError('Llegó más de lo que suman los cobros marcados. Si el depósito traía otros consumos, márcalos también aquí.');
+    }
+    setGuardando(true);
+    const { error: err } = await liquidarCobros({
+      ingresos: marcados, cuentaDestinoId: destino, montoRecibido: recibidoNum, fecha,
+    });
+    setGuardando(false);
+    if (err) return setError(err.message);
+    onHecho(marcados.length);
+  };
+
+  const label = (t) => (
+    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>{t}</label>
+  );
+  const input = {
+    width: '100%', padding: isMobile ? '14px 12px' : '9px 11px', fontSize: isMobile ? 16 : 14,
+    border: `1px solid ${B.grayMd}`, borderRadius: 8, background: B.white, color: B.navy,
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div onClick={onCerrar} style={{
+      position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.45)', zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: B.white, borderRadius: 14, width: '100%', maxWidth: 460,
+        maxHeight: '88vh', overflowY: 'auto', padding: isMobile ? 18 : 22,
+        boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+      }}>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: B.navy }}>Confirmar depósito</p>
+        <p style={{ margin: '4px 0 16px', fontSize: 12, color: B.gray }}>
+          {cobro.cuenta?.nombre} deposita en el banco. Lo que se quedó la plataforma
+          se calcula solo con la diferencia.
+        </p>
+
+        <p style={{ fontSize: 11, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6, margin: '0 0 6px' }}>
+          {hermanos.length ? '¿Qué cobros venían en ese depósito?' : 'Cobro'}
+        </p>
+        <div style={{ border: `1px solid ${B.grayMd}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
+          {candidatos.map((m, i) => (
+            <label key={m.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+              padding: '10px 12px', borderTop: i ? `1px solid ${B.grayLt}` : 'none',
+              background: marcados.includes(m.id) ? '#F2F8FC' : B.white,
+            }}>
+              <input type="checkbox" checked={marcados.includes(m.id)} onChange={() => alternar(m.id)} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: B.navy }}>
+                {m.categoria?.nombre || '—'}
+                <span style={{ display: 'block', fontSize: 11, color: B.gray }}>
+                  {m.fecha}{m.contraparte ? ` · ${m.contraparte}` : ''}{m.empresa ? ` · ${m.empresa}` : ''}
+                </span>
+              </span>
+              <strong style={{ fontSize: 13, color: B.navy, whiteSpace: 'nowrap' }}>$ {money(m.monto)}</strong>
+            </label>
+          ))}
+        </div>
+
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: B.grayLt, borderRadius: 10, padding: '10px 14px', marginBottom: 14,
+        }}>
+          <span style={{ fontSize: 12, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>
+            Se cobró
+          </span>
+          <strong style={{ fontSize: 17, color: B.navy }}>$ {money(esperado)}</strong>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ flex: '1 1 150px', marginBottom: 12 }}>
+            {label('¿Cuánto llegó?')}
+            <input inputMode="decimal" autoFocus style={input}
+              value={recibido} onChange={(e) => setRecibido(e.target.value)} />
+          </div>
+          <div style={{ flex: '0 0 140px', marginBottom: 12 }}>
+            {label('Fecha del depósito')}
+            <input type="date" style={input} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </div>
+          <div style={{ flex: '1 1 100%', marginBottom: 12 }}>
+            {label('Entra a')}
+            <select style={input} value={destino} onChange={(e) => setDestino(e.target.value)}>
+              {bancos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 12, color: diferencia > 0 ? B.orange : B.gray, margin: '0 0 14px' }}>
+          {isNaN(recibidoNum) || recibidoNum <= 0
+            ? 'Si llegó completo, deja el valor como está.'
+            : diferencia > 0.005
+              ? `La plataforma se quedó $ ${money(diferencia)}. Queda registrado como comisión.`
+              : 'Llegó completo: sin comisión.'}
+        </p>
+
+        {error && (
+          <div style={{ background: '#FDECEC', color: B.red, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={confirmar} disabled={guardando} style={{
+            flex: 1, minWidth: 160, padding: isMobile ? '15px 20px' : '11px 22px',
+            fontSize: 15, fontWeight: 800, color: B.white,
+            background: guardando ? B.gray : B.green,
+            border: 'none', borderRadius: 8, cursor: guardando ? 'default' : 'pointer',
+          }}>
+            {guardando ? 'Confirmando…' : 'Pago confirmado'}
+          </button>
+          <button onClick={onCerrar} style={{
+            padding: isMobile ? '15px 20px' : '11px 22px', fontSize: 14, fontWeight: 700,
+            color: B.gray, background: B.white, border: `1px solid ${B.grayMd}`,
+            borderRadius: 8, cursor: 'pointer',
+          }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobile }) {
   const esGerente = miembro.rol === 'gerente';
+  const [confirmando, setConfirmando] = useState(null);
 
   const anular = async (m) => {
     const motivo = window.prompt(`¿Por qué se anula este movimiento de $${money(m.monto)}?`);
@@ -574,8 +742,14 @@ function Lista({ movimientos, miembro, onCambio, isMobile }) {
 
   const signo = (m) => m.tipo === 'ingreso' ? '+' : m.tipo === 'egreso' ? '−' : '→';
   const color = (m) => m.tipo === 'ingreso' ? B.green : m.tipo === 'egreso' ? B.red : B.blue;
+  const esTarjeta = (m) => m.tipo === 'ingreso' && !m.anulado && m.cuenta?.tipo === 'transito';
+  const sello = {
+    display: 'inline-block', marginTop: 5, padding: '3px 9px', borderRadius: 20,
+    fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+  };
 
   return (
+    <>
     <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden' }}>
       {movimientos.map((m, i) => (
         <div key={m.id} style={{
@@ -602,12 +776,29 @@ function Lista({ movimientos, miembro, onCambio, isMobile }) {
               {Number(m.comision) > 0 ? ` · comisión $${money(m.comision)}` : ''}
             </p>
             {m.descripcion && <p style={{ margin: '2px 0 0', fontSize: 12, color: B.teal }}>{m.descripcion}</p>}
+            {esTarjeta(m) && (
+              enTransito(m)
+                ? <span style={{ ...sello, background: '#FFF1E3', color: B.orange }}>En tránsito</span>
+                : <span style={{ ...sello, background: '#E9F6EF', color: B.green }}>
+                    Depositado{m.liquidacion?.fecha ? ` el ${m.liquidacion.fecha}` : ''}
+                  </span>
+            )}
             {m.anulado && <p style={{ margin: '2px 0 0', fontSize: 11, color: B.red }}>Anulado: {m.motivo_anulacion}</p>}
           </div>
           <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
             <strong style={{ fontSize: 15, color: color(m) }}>
               {signo(m)} $ {money(m.monto)}
             </strong>
+            {enTransito(m) && esGerente && (
+              <button onClick={() => setConfirmando(m)}
+                style={{
+                  display: 'block', marginLeft: 'auto', marginTop: 6,
+                  padding: isMobile ? '9px 12px' : '6px 12px', fontSize: 12, fontWeight: 700,
+                  color: B.white, background: B.green, border: 'none', borderRadius: 7, cursor: 'pointer',
+                }}>
+                Pago confirmado
+              </button>
+            )}
             {!m.anulado && (esGerente || m.creado_por === miembro.id) && (
               <button onClick={() => anular(m)}
                 style={{ display: 'block', marginLeft: 'auto', marginTop: 4, background: 'none', border: 'none', color: B.gray, fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>
@@ -618,6 +809,24 @@ function Lista({ movimientos, miembro, onCambio, isMobile }) {
         </div>
       ))}
     </div>
+
+    {confirmando && (
+      <ConfirmarDeposito
+        cobro={confirmando}
+        todos={todos}
+        cuentas={cuentas}
+        isMobile={isMobile}
+        onCerrar={() => setConfirmando(null)}
+        onHecho={(cuantos) => {
+          setConfirmando(null);
+          onAviso(cuantos === 1
+            ? 'Depósito confirmado: el dinero ya está en la cuenta'
+            : `${cuantos} cobros depositados en la cuenta`);
+          onCambio();
+        }}
+      />
+    )}
+    </>
   );
 }
 
@@ -649,9 +858,13 @@ export default function Caja({ miembro }) {
     })();
   }, [version]);
 
-  const registrado = () => {
-    setToast('Movimiento registrado');
+  const avisar = (texto) => {
+    setToast(texto);
     setTimeout(() => setToast(null), 2500);
+  };
+
+  const registrado = () => {
+    avisar('Movimiento registrado');
     recargar();
   };
 
@@ -727,7 +940,10 @@ export default function Caja({ miembro }) {
               </div>
             )}
             <Totales movimientos={lista} isMobile={isMobile} />
-            <Lista movimientos={lista} miembro={miembro} onCambio={recargar} isMobile={isMobile} />
+            <Lista
+              movimientos={lista} todos={movimientos} cuentas={cuentas}
+              miembro={miembro} onCambio={recargar} onAviso={avisar} isMobile={isMobile}
+            />
           </>
         );
       })()}
