@@ -123,6 +123,18 @@ export function enTransito(m) {
     && m.cuenta?.tipo === 'transito' && !m.liquidacion_id;
 }
 
+// Los cobros que siguen esperando depósito, sin importar la fecha: un
+// depósito de hoy puede traer consumos de la semana pasada, y si el
+// filtro de fechas los escondiera, no se podrían marcar juntos.
+export async function getTransitoPendiente() {
+  const { data } = await supabase
+    .from('caja_movimientos')
+    .select(`*, cuenta:cuenta_id (nombre, tipo), categoria:categoria_id (nombre)`)
+    .eq('tipo', 'ingreso').eq('anulado', false).is('liquidacion_id', null)
+    .order('fecha', { ascending: false });
+  return (data || []).filter((m) => m.cuenta?.tipo === 'transito');
+}
+
 export async function liquidarCobros({ ingresos, cuentaDestinoId, montoRecibido, fecha }) {
   const { data, error } = await supabase.rpc('caja_liquidar', {
     p_ingresos: ingresos,

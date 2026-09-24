@@ -3,13 +3,24 @@ import {
   EMPRESAS, TIPOS, money, enTransito,
   getCuentas, getCategorias, getCasosAbiertos,
   getPanel, getSaldos, getMovimientos, crearMovimiento, anularMovimiento,
-  liquidarCobros,
+  liquidarCobros, getTransitoPendiente,
 } from '../lib/caja';
 
 const B = {
   navy: '#0B1F3B', blue: '#1E7CB5', teal: '#4B647A', gray: '#6E6E70',
   grayLt: '#F4F6F8', grayMd: '#DDE3EA', white: '#FFFFFF',
   green: '#1A7A4A', red: '#B02020', orange: '#C25A00',
+};
+
+const flecha = {
+  width: 38, height: 38, flex: '0 0 38px', padding: 0,
+  fontSize: 20, fontWeight: 800, lineHeight: 1,
+  color: B.navy, background: B.white,
+  border: `1px solid ${B.grayMd}`, borderRadius: 10, cursor: 'pointer',
+};
+const campoFecha = {
+  padding: '7px 9px', fontSize: 13, color: B.navy, background: B.white,
+  border: `1px solid ${B.grayMd}`, borderRadius: 8,
 };
 
 function useIsMobile() {
@@ -22,7 +33,48 @@ function useIsMobile() {
   return m;
 }
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+// La fecha del día EN ECUADOR. toISOString() da la fecha en UTC, y como
+// aquí son UTC-5, de 19h00 en adelante devolvía la de mañana: un gasto
+// registrado a las 20h00 quedaba fechado al día siguiente.
+const enLocal = (d) =>
+  new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const hoy = () => enLocal(new Date());
+
+// Ojo con new Date('2026-09-23'): eso es medianoche UTC y en Ecuador cae
+// el día anterior. Por eso la fecha se parte y se arma a mano.
+const comoFecha = (iso) => {
+  const [a, m, d] = iso.split('-').map(Number);
+  return new Date(a, m - 1, d);
+};
+
+const fechaLarga = (iso) => {
+  if (iso === hoy()) return 'Hoy';
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+  if (iso === enLocal(ayer)) return 'Ayer';
+  const t = comoFecha(iso).toLocaleDateString('es-EC',
+    { weekday: 'long', day: 'numeric', month: 'long' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+// La vista de movimientos funciona como un estado de cuenta de banco: un
+// mes a la vez, con flechas para moverse. El rango libre de fechas es la
+// excepción, para cuando hay que mirar algo que cruza meses.
+const mesDeHoy = () => { const h = new Date(); return { a: h.getFullYear(), m: h.getMonth() }; };
+
+const rangoDeMes = ({ a, m }) => ({
+  desde: enLocal(new Date(a, m, 1)),
+  hasta: enLocal(new Date(a, m + 1, 0)),   // día 0 del siguiente = último de este
+});
+
+const nombreMes = ({ a, m }) => {
+  const t = new Date(a, m, 1).toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+const mesVecino = ({ a, m }, paso) => {
+  const d = new Date(a, m + paso, 1);
+  return { a: d.getFullYear(), m: d.getMonth() };
+};
 
 // =====================================================================
 //  PANEL — solo gerentes
@@ -724,7 +776,7 @@ function ConfirmarDeposito({ cobro, todos, cuentas, onCerrar, onHecho, isMobile 
   );
 }
 
-function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobile }) {
+function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobile, vacio }) {
   const esGerente = miembro.rol === 'gerente';
   const [confirmando, setConfirmando] = useState(null);
 
@@ -737,7 +789,7 @@ function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobi
   };
 
   if (!movimientos.length) {
-    return <p style={{ color: B.gray, fontSize: 14 }}>Todavía no hay movimientos registrados.</p>;
+    return <p style={{ color: B.gray, fontSize: 14 }}>{vacio || 'Todavía no hay movimientos registrados.'}</p>;
   }
 
   const signo = (m) => m.tipo === 'ingreso' ? '+' : m.tipo === 'egreso' ? '−' : '→';
@@ -748,10 +800,42 @@ function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobi
     fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
   };
 
+  // Agrupa por día. Los movimientos ya vienen del más nuevo al más viejo,
+  // así que basta con cortar cuando cambia la fecha.
+  const grupos = [];
+  for (const m of movimientos) {
+    const ult = grupos[grupos.length - 1];
+    if (ult && ult.fecha === m.fecha) ult.items.push(m);
+    else grupos.push({ fecha: m.fecha, items: [m] });
+  }
+  const totalDia = (items, tipo) => items
+    .filter((m) => !m.anulado && m.tipo === tipo)
+    .reduce((s, m) => s + Number(m.monto) + (tipo === 'egreso' ? Number(m.comision) : 0), 0);
+
   return (
     <>
     <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden' }}>
-      {movimientos.map((m, i) => (
+      {grupos.map((g, gi) => (
+        <div key={g.fecha}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+            padding: isMobile ? '9px 14px' : '8px 16px', background: B.grayLt,
+            borderTop: gi ? `1px solid ${B.grayMd}` : 'none',
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: B.navy, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              {fechaLarga(g.fecha)}
+            </span>
+            <span style={{ fontSize: 11, color: B.gray, whiteSpace: 'nowrap' }}>
+              {totalDia(g.items, 'ingreso') > 0 && (
+                <strong style={{ color: B.green }}>+$ {money(totalDia(g.items, 'ingreso'))}</strong>
+              )}
+              {totalDia(g.items, 'ingreso') > 0 && totalDia(g.items, 'egreso') > 0 ? ' · ' : ''}
+              {totalDia(g.items, 'egreso') > 0 && (
+                <strong style={{ color: B.red }}>−$ {money(totalDia(g.items, 'egreso'))}</strong>
+              )}
+            </span>
+          </div>
+          {g.items.map((m, i) => (
         <div key={m.id} style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
           padding: isMobile ? '12px 14px' : '11px 16px',
@@ -807,6 +891,8 @@ function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobi
             )}
           </div>
         </div>
+          ))}
+        </div>
       ))}
     </div>
 
@@ -846,17 +932,43 @@ export default function Caja({ miembro }) {
   // Los gerentes ven las dos empresas, así que necesitan separarlas.
   // Las secretarias solo reciben las suyas: la base ya las filtró.
   const [empresaFiltro, setEmpresaFiltro] = useState('IMC');
+  // El mes que se está mirando, como en un estado de cuenta. Si hay
+  // fechas puestas a mano, esas mandan y el mes queda de lado.
+  const [mesVista, setMesVista] = useState(mesDeHoy);
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [pendientes, setPendientes] = useState([]);
+  const [cargandoMovs, setCargandoMovs] = useState(true);
+
+  const porFechas = Boolean(desde || hasta);
+  const rango = porFechas
+    ? { desde: desde || null, hasta: hasta || null }
+    : rangoDeMes(mesVista);
 
   const recargar = useCallback(() => setVersion((v) => v + 1), []);
 
   useEffect(() => {
     (async () => {
-      const [cu, ca, ks, ms] = await Promise.all([
-        getCuentas(), getCategorias(), getCasosAbiertos(), getMovimientos({ limite: 100 }),
+      const [cu, ca, ks] = await Promise.all([
+        getCuentas(), getCategorias(), getCasosAbiertos(),
       ]);
-      setCuentas(cu); setCategorias(ca); setCasos(ks); setMovimientos(ms);
+      setCuentas(cu); setCategorias(ca); setCasos(ks);
     })();
   }, [version]);
+
+  // Los movimientos se recargan cuando cambia el mes o el rango. Los
+  // cobros pendientes de depósito van aparte y sin filtro de fecha: un
+  // depósito de hoy puede traer consumos de la semana pasada.
+  useEffect(() => {
+    (async () => {
+      setCargandoMovs(true);
+      const [ms, pd] = await Promise.all([
+        getMovimientos({ desde: rango.desde, hasta: rango.hasta, limite: 500 }),
+        getTransitoPendiente(),
+      ]);
+      setMovimientos(ms); setPendientes(pd); setCargandoMovs(false);
+    })();
+  }, [version, rango.desde, rango.hasta]);
 
   const avisar = (texto) => {
     setToast(texto);
@@ -939,11 +1051,67 @@ export default function Caja({ miembro }) {
                 ))}
               </div>
             )}
+
+            {/* El navegador de meses: un mes a la vez, como un estado de cuenta */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              background: B.white, border: `1px solid ${B.grayMd}`, borderRadius: 12,
+              padding: isMobile ? '10px 12px' : '10px 14px', marginBottom: 12,
+            }}>
+              <button onClick={() => { setDesde(''); setHasta(''); setMesVista(mesVecino(mesVista, -1)); }}
+                aria-label="Mes anterior" style={flecha}>‹</button>
+              <div style={{ flex: '1 1 auto', textAlign: 'center', minWidth: 140 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: porFechas ? B.gray : B.navy }}>
+                  {porFechas ? 'Rango personalizado' : nombreMes(mesVista)}
+                </p>
+                <p style={{ margin: '1px 0 0', fontSize: 11, color: B.gray }}>
+                  {cargandoMovs ? 'cargando…'
+                    : `${lista.length} movimiento${lista.length === 1 ? '' : 's'}`}
+                </p>
+              </div>
+              <button
+                onClick={() => { setDesde(''); setHasta(''); setMesVista(mesVecino(mesVista, 1)); }}
+                disabled={!porFechas && mesVista.a === mesDeHoy().a && mesVista.m === mesDeHoy().m}
+                aria-label="Mes siguiente"
+                style={{
+                  ...flecha,
+                  opacity: (!porFechas && mesVista.a === mesDeHoy().a && mesVista.m === mesDeHoy().m) ? 0.3 : 1,
+                  cursor: (!porFechas && mesVista.a === mesDeHoy().a && mesVista.m === mesDeHoy().m) ? 'default' : 'pointer',
+                }}>›</button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', width: isMobile ? '100%' : 'auto' }}>
+                <span style={{ fontSize: 11, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>
+                  o entre
+                </span>
+                <input type="date" value={desde} max={hasta || undefined}
+                  onChange={(e) => setDesde(e.target.value)} style={campoFecha} />
+                <span style={{ fontSize: 12, color: B.gray }}>y</span>
+                <input type="date" value={hasta} min={desde || undefined}
+                  onChange={(e) => setHasta(e.target.value)} style={campoFecha} />
+                {porFechas && (
+                  <button onClick={() => { setDesde(''); setHasta(''); setMesVista(mesDeHoy()); }}
+                    style={{
+                      padding: '7px 12px', fontSize: 12, fontWeight: 700, color: B.blue,
+                      background: B.white, border: `1px solid ${B.grayMd}`, borderRadius: 8, cursor: 'pointer',
+                    }}>
+                    Volver a meses
+                  </button>
+                )}
+              </div>
+            </div>
+
             <Totales movimientos={lista} isMobile={isMobile} />
-            <Lista
-              movimientos={lista} todos={movimientos} cuentas={cuentas}
-              miembro={miembro} onCambio={recargar} onAviso={avisar} isMobile={isMobile}
-            />
+            {cargandoMovs ? (
+              <p style={{ color: B.gray, fontSize: 14 }}>Cargando movimientos…</p>
+            ) : (
+              <Lista
+                movimientos={lista} todos={pendientes} cuentas={cuentas}
+                miembro={miembro} onCambio={recargar} onAviso={avisar} isMobile={isMobile}
+                vacio={porFechas
+                  ? 'No hay movimientos en esas fechas.'
+                  : `No hay movimientos en ${nombreMes(mesVista).toLowerCase()}.`}
+              />
+            )}
           </>
         );
       })()}
