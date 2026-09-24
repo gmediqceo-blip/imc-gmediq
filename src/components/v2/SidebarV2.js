@@ -41,16 +41,25 @@ export default function SidebarV2({ active, onSelect, usuario, onLogout, onAbrir
   })).filter(g => g.items.length > 0);
 
   return (
+    <>
+    {/* Hueco que reserva el ancho: el sidebar sale del flujo al fijarse */}
+    <div style={{ width: 236, flexShrink: 0 }} aria-hidden />
+
     <aside
       style={{
+        // Fijo al viewport, no a la página. Antes crecía con el contenido,
+        // así que para cerrar sesión en una lista larga había que bajar
+        // hasta el final del documento a buscar el botón.
+        position: 'fixed',
+        top: 0,
+        left: 0,
         width: 236,
-        flexShrink: 0,
+        height: '100vh',
+        zIndex: 20,
         background: 'var(--ink)',
         display: 'flex',
         flexDirection: 'column',
-        position: 'relative',
         overflow: 'hidden',
-        minHeight: '100vh',
       }}
     >
       {/* Trama hexagonal decorativa */}
@@ -79,7 +88,9 @@ export default function SidebarV2({ active, onSelect, usuario, onLogout, onAbrir
       </div>
 
       {/* Navegación */}
-      <nav style={{ padding: '0 12px', position: 'relative', flex: 1 }}>
+      {/* Si algún día la navegación no cabe, que scrollee ella y no se
+          lleve consigo la tarjeta del usuario */}
+      <nav style={{ padding: '0 12px', position: 'relative', flex: 1, overflowY: 'auto' }}>
         {navFiltered.map(g => (
           <div key={g.grupo} style={{ marginBottom: 22 }}>
             <p
@@ -200,5 +211,6 @@ export default function SidebarV2({ active, onSelect, usuario, onLogout, onAbrir
         </div>
       )}
     </aside>
+    </>
   );
 }
