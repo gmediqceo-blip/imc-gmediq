@@ -152,7 +152,9 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
     tipo: 'ingreso', fecha: hoy(), monto: '', cuenta_id: '', cuenta_destino_id: '',
     monto_recibido: '', categoria_id: '', caso_id: '', contraparte: '', descripcion: '',
     interbancaria: false,
-    empresa: esGerente ? 'GMEDIQ' : miembro.empresa,
+    // Sin valor por defecto a propósito: cuando venía con una empresa
+    // puesta, todo se registraba ahí porque nadie la cambiaba.
+    empresa: esGerente ? '' : miembro.empresa,
   };
   const [f, setF] = useState(vacio);
   const [guardando, setGuardando] = useState(false);
@@ -179,6 +181,7 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
     } else if (!f.categoria_id) {
       return setError(f.tipo === 'ingreso' ? 'Elige el servicio.' : 'Elige la categoría.');
     }
+    if (!esTraslado && !f.empresa) return setError('Elige la empresa: IMC o Gmediq.');
 
     const recibido = esTraslado
       ? (f.monto_recibido === '' ? monto : parseFloat(String(f.monto_recibido).replace(',', '.')))
@@ -226,7 +229,11 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
       {/* Tipo de movimiento */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {tipos.map((t) => (
-          <button key={t.value} onClick={() => setF({ ...vacio, tipo: t.value, fecha: f.fecha })}
+          <button key={t.value}
+            // Cambiar de tipo limpia el formulario, pero conserva fecha y
+            // empresa: borrarlas hacía que una elección de IMC terminara
+            // guardándose en Gmediq sin que nadie lo viera.
+            onClick={() => setF({ ...vacio, tipo: t.value, fecha: f.fecha, empresa: f.empresa })}
             style={{
               flex: isMobile ? '1 1 45%' : '0 0 auto',
               padding: isMobile ? '14px 16px' : '9px 18px', fontSize: 14, fontWeight: 700,
@@ -239,6 +246,38 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
           </button>
         ))}
       </div>
+
+      {/* La empresa va arriba y en grande, no escondida entre los campos:
+          es lo que decide de qué negocio es este dinero, y cuando estaba
+          abajo como un desplegable más, todo terminaba en Gmediq. */}
+      {!esTraslado && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+            ¿De qué empresa es?
+          </p>
+          {esGerente ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {EMPRESAS.map((e2) => (
+                <button key={e2.value} type="button" onClick={() => set('empresa', e2.value)}
+                  style={{
+                    flex: isMobile ? '1 1 30%' : '0 0 auto',
+                    padding: isMobile ? '13px 14px' : '9px 22px', fontSize: 14, fontWeight: 700,
+                    borderRadius: 8, cursor: 'pointer',
+                    border: `2px solid ${f.empresa === e2.value ? B.blue : B.grayMd}`,
+                    background: f.empresa === e2.value ? B.blue : B.white,
+                    color: f.empresa === e2.value ? B.white : B.gray,
+                  }}>
+                  {e2.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: B.navy }}>
+              {EMPRESAS.find((e2) => e2.value === miembro.empresa)?.label || miembro.empresa}
+            </p>
+          )}
+        </div>
+      )}
 
       <form onSubmit={(e) => { e.preventDefault(); guardar(); }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -285,15 +324,6 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
               <select style={input} value={f.categoria_id} onChange={(e) => set('categoria_id', e.target.value)}>
                 <option value="">Elegir…</option>
                 {cats.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
-            </div>
-          )}
-
-          {!esTraslado && esGerente && (
-            <div style={campo('0 0 150px')}>
-              {label('Empresa')}
-              <select style={input} value={f.empresa} onChange={(e) => set('empresa', e.target.value)}>
-                {EMPRESAS.map((e2) => <option key={e2.value} value={e2.value}>{e2.label}</option>)}
               </select>
             </div>
           )}
