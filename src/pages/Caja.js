@@ -3,7 +3,7 @@ import {
   EMPRESAS, TIPOS, money, enTransito,
   getCuentas, getCategorias, getCasosAbiertos,
   getPanel, getSaldos, getMovimientos, crearMovimiento, anularMovimiento,
-  liquidarCobros, getTransitoPendiente,
+  liquidarCobros, getTransitoPendiente, actualizarMovimiento,
 } from '../lib/caja';
 
 const B = {
@@ -806,9 +806,198 @@ function ConfirmarDeposito({ cobro, todos, cuentas, onCerrar, onHecho, isMobile 
   );
 }
 
-function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobile, vacio }) {
+// =====================================================================
+//  EDITAR — corregir un movimiento mal registrado
+//
+//  Hace falta porque anular deja la línea tachada y obliga a volver a
+//  cargarlo todo. Para un monto mal tecleado o una empresa equivocada,
+//  corregir es lo natural; anular es para lo que no debió existir.
+// =====================================================================
+function EditarMovimiento({ mov, cuentas, categorias, miembro, onCerrar, onHecho, isMobile }) {
+  const esGerente = miembro.rol === 'gerente';
+  const esTraslado = mov.tipo === 'traslado';
+  const [f, setF] = useState({
+    fecha: mov.fecha,
+    monto: String(mov.monto),
+    monto_recibido: mov.monto_recibido != null ? String(mov.monto_recibido) : '',
+    cuenta_id: mov.cuenta_id,
+    cuenta_destino_id: mov.cuenta_destino_id || '',
+    categoria_id: mov.categoria_id || '',
+    empresa: mov.empresa || '',
+    contraparte: mov.contraparte || '',
+    descripcion: mov.descripcion || '',
+    interbancaria: Boolean(mov.interbancaria),
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const num = (x) => parseFloat(String(x).replace(',', '.'));
+  const cats = categorias.filter((c) => c.tipo === mov.tipo);
+  const cuentaSel = cuentas.find((c) => c.id === f.cuenta_id);
+
+  const guardar = async () => {
+    setError(null);
+    const monto = num(f.monto);
+    if (!monto || monto <= 0) return setError('El monto debe ser mayor que cero.');
+    if (!f.cuenta_id) return setError('Elige la cuenta.');
+    if (esTraslado) {
+      if (!f.cuenta_destino_id || f.cuenta_destino_id === f.cuenta_id)
+        return setError('El origen y el destino deben ser cuentas distintas.');
+      if (num(f.monto_recibido) > monto || num(f.monto_recibido) <= 0)
+        return setError('Lo que llega no puede ser mayor que lo que sale.');
+    } else {
+      if (!f.categoria_id) return setError('Elige la categoría.');
+      if (!f.empresa) return setError('Elige la empresa.');
+    }
+
+    setGuardando(true);
+    const err = await actualizarMovimiento(mov.id, {
+      fecha: f.fecha,
+      monto,
+      monto_recibido: esTraslado ? num(f.monto_recibido) : null,
+      cuenta_id: f.cuenta_id,
+      cuenta_destino_id: esTraslado ? f.cuenta_destino_id : null,
+      categoria_id: esTraslado ? null : f.categoria_id,
+      empresa: esTraslado ? null : f.empresa,
+      contraparte: f.contraparte || null,
+      descripcion: f.descripcion || null,
+      interbancaria: mov.tipo === 'egreso' && f.interbancaria,
+    });
+    setGuardando(false);
+    if (err) return setError(err.message);
+    onHecho();
+  };
+
+  const label = (t) => (
+    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>{t}</label>
+  );
+  const input = {
+    width: '100%', padding: isMobile ? '14px 12px' : '9px 11px', fontSize: isMobile ? 16 : 14,
+    border: `1px solid ${B.grayMd}`, borderRadius: 8, background: B.white, color: B.navy,
+    boxSizing: 'border-box',
+  };
+  const campo = (ancho = '1 1 150px') => ({ flex: ancho, minWidth: 130, marginBottom: 12 });
+
+  return (
+    <div onClick={onCerrar} style={{
+      position: 'fixed', inset: 0, background: 'rgba(11,31,59,0.45)', zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: B.white, borderRadius: 14, width: '100%', maxWidth: 520,
+        maxHeight: '88vh', overflowY: 'auto', padding: isMobile ? 18 : 22,
+        boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+      }}>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 800, color: B.navy }}>Corregir movimiento</p>
+        <p style={{ margin: '4px 0 16px', fontSize: 12, color: B.gray }}>
+          Los saldos se recalculan solos. Queda registrado quién lo creó.
+        </p>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div style={campo('0 0 140px')}>
+            {label('Fecha')}
+            <input type="date" style={input} value={f.fecha} onChange={(e) => set('fecha', e.target.value)} />
+          </div>
+          <div style={campo('0 0 130px')}>
+            {label(esTraslado ? 'Sale' : 'Monto')}
+            <input inputMode="decimal" autoFocus style={input}
+              value={f.monto} onChange={(e) => set('monto', e.target.value)} />
+          </div>
+          {esTraslado && (
+            <div style={campo('0 0 130px')}>
+              {label('Llega')}
+              <input inputMode="decimal" style={input}
+                value={f.monto_recibido} onChange={(e) => set('monto_recibido', e.target.value)} />
+            </div>
+          )}
+
+          <div style={campo()}>
+            {label(esTraslado ? 'Desde' : mov.tipo === 'ingreso' ? 'Entra a' : 'Sale de')}
+            <select style={input} value={f.cuenta_id} onChange={(e) => set('cuenta_id', e.target.value)}>
+              {cuentas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </div>
+
+          {esTraslado && (
+            <div style={campo()}>
+              {label('Hacia')}
+              <select style={input} value={f.cuenta_destino_id} onChange={(e) => set('cuenta_destino_id', e.target.value)}>
+                {cuentas.filter((c) => c.id !== f.cuenta_id).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+          )}
+
+          {!esTraslado && (
+            <div style={campo('1 1 200px')}>
+              {label(mov.tipo === 'ingreso' ? 'Servicio' : 'Categoría')}
+              <select style={input} value={f.categoria_id} onChange={(e) => set('categoria_id', e.target.value)}>
+                <option value="">Elegir…</option>
+                {cats.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+          )}
+
+          {!esTraslado && esGerente && (
+            <div style={campo('0 0 150px')}>
+              {label('Empresa')}
+              <select style={input} value={f.empresa} onChange={(e) => set('empresa', e.target.value)}>
+                <option value="">Elegir…</option>
+                {EMPRESAS.map((e2) => <option key={e2.value} value={e2.value}>{e2.label}</option>)}
+              </select>
+            </div>
+          )}
+
+          {!esTraslado && (
+            <div style={campo()}>
+              {label(mov.tipo === 'ingreso' ? 'Quién paga' : 'A quién')}
+              <input style={input} value={f.contraparte} onChange={(e) => set('contraparte', e.target.value)} />
+            </div>
+          )}
+
+          <div style={campo('1 1 100%')}>
+            {label('Nota')}
+            <input style={input} value={f.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
+          </div>
+        </div>
+
+        {mov.tipo === 'egreso' && cuentaSel?.tipo === 'banco' && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: B.navy, marginBottom: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={f.interbancaria} onChange={(e) => set('interbancaria', e.target.checked)} />
+            Transferencia a otro banco — descuenta $0,41 de comisión
+          </label>
+        )}
+
+        {error && (
+          <div style={{ background: '#FDECEC', color: B.red, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onCerrar} style={{
+            padding: '10px 18px', fontSize: 13, fontWeight: 700, color: B.gray,
+            background: B.white, border: `1px solid ${B.grayMd}`, borderRadius: 8, cursor: 'pointer',
+          }}>
+            Cancelar
+          </button>
+          <button onClick={guardar} disabled={guardando} style={{
+            padding: '10px 22px', fontSize: 13, fontWeight: 800, color: B.white,
+            background: guardando ? B.gray : B.navy, border: 'none', borderRadius: 8,
+            cursor: guardando ? 'default' : 'pointer',
+          }}>
+            {guardando ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Lista({ movimientos, todos, cuentas, categorias, miembro, onCambio, onAviso, isMobile, vacio }) {
   const esGerente = miembro.rol === 'gerente';
   const [confirmando, setConfirmando] = useState(null);
+  const [editando, setEditando] = useState(null);
 
   const anular = async (m) => {
     const motivo = window.prompt(`¿Por qué se anula este movimiento de $${money(m.monto)}?`);
@@ -914,10 +1103,16 @@ function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobi
               </button>
             )}
             {!m.anulado && (esGerente || m.creado_por === miembro.id) && (
-              <button onClick={() => anular(m)}
-                style={{ display: 'block', marginLeft: 'auto', marginTop: 4, background: 'none', border: 'none', color: B.gray, fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>
-                anular
-              </button>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button onClick={() => setEditando(m)}
+                  style={{ background: 'none', border: 'none', color: B.blue, fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                  corregir
+                </button>
+                <button onClick={() => anular(m)}
+                  style={{ background: 'none', border: 'none', color: B.gray, fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                  anular
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -938,6 +1133,22 @@ function Lista({ movimientos, todos, cuentas, miembro, onCambio, onAviso, isMobi
           onAviso(cuantos === 1
             ? 'Depósito confirmado: el dinero ya está en la cuenta'
             : `${cuantos} cobros depositados en la cuenta`);
+          onCambio();
+        }}
+      />
+    )}
+
+    {editando && (
+      <EditarMovimiento
+        mov={editando}
+        cuentas={cuentas}
+        categorias={categorias}
+        miembro={miembro}
+        isMobile={isMobile}
+        onCerrar={() => setEditando(null)}
+        onHecho={() => {
+          setEditando(null);
+          onAviso('Movimiento corregido');
           onCambio();
         }}
       />
@@ -1135,7 +1346,7 @@ export default function Caja({ miembro }) {
               <p style={{ color: B.gray, fontSize: 14 }}>Cargando movimientos…</p>
             ) : (
               <Lista
-                movimientos={lista} todos={pendientes} cuentas={cuentas}
+                movimientos={lista} todos={pendientes} cuentas={cuentas} categorias={categorias}
                 miembro={miembro} onCambio={recargar} onAviso={avisar} isMobile={isMobile}
                 vacio={porFechas
                   ? 'No hay movimientos en esas fechas.'

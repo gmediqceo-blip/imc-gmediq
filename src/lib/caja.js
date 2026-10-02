@@ -145,6 +145,16 @@ export async function liquidarCobros({ ingresos, cuentaDestinoId, montoRecibido,
   return { data, error };
 }
 
+// Corrige un movimiento ya registrado. La comisión no se toca aquí: el
+// trigger de la base la vuelve a calcular con el nuevo monto y con la
+// marca de interbancaria, igual que al crearlo.
+export async function actualizarMovimiento(id, campos) {
+  const { comision, id: _i, creado_por, creado_en, ...limpio } = campos;
+  const { error } = await supabase
+    .from('caja_movimientos').update(limpio).eq('id', id);
+  return error;
+}
+
 export async function crearCaso(caso, userId) {
   const { data, error } = await supabase
     .from('caja_casos').insert({ ...caso, creado_por: userId }).select().single();
