@@ -191,6 +191,24 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
       return setError('Lo que llega no puede ser mayor que lo que sale.');
     }
 
+    // Un abono de un paciente que todavía no existe: se crea primero el
+    // caso y el ingreso nace ya ligado a él. Si no, el dinero entraría
+    // sin quedar comprometido, que es justo lo que hay que evitar.
+    let casoDelAbono = f.caso_id || null;
+    if (f.esAbono && !casoDelAbono) {
+      if (!String(f.nuevoPaciente || '').trim()) {
+        return setError('Escribe el nombre del paciente, o elígelo de la lista.');
+      }
+      setGuardando(true);
+      const { data: creado, error: errCaso } = await crearCaso({
+        paciente: String(f.nuevoPaciente).trim(),
+        servicio: f.nuevoServicio || SERVICIOS_CASO[0],
+        empresa: f.empresa,
+      }, miembro.id);
+      if (errCaso) { setGuardando(false); return setError(errCaso.message); }
+      casoDelAbono = creado.id;
+    }
+
     setGuardando(true);
     const { error: err } = await crearMovimiento({
       tipo: f.tipo,
@@ -200,7 +218,7 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
       cuenta_id: f.cuenta_id,
       cuenta_destino_id: esTraslado ? f.cuenta_destino_id : null,
       categoria_id: esTraslado ? null : f.categoria_id,
-      caso_id: puedeLigarCaso && f.caso_id ? f.caso_id : null,
+      caso_id: f.tipo === 'ingreso' ? casoDelAbono : (puedeLigarCaso && f.caso_id ? f.caso_id : null),
       empresa: esTraslado ? null : f.empresa,
       contraparte: f.contraparte || null,
       descripcion: f.descripcion || null,
@@ -210,7 +228,12 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
 
     if (err) return setError(err.message);
     // Se conserva tipo, fecha y cuenta: lo normal es cargar varios seguidos.
-    setF((prev) => ({ ...prev, monto: '', monto_recibido: '', contraparte: '', descripcion: '', caso_id: '' }));
+    // Se limpia también lo del abono: el siguiente cobro casi nunca es
+    // del mismo paciente, y dejarlo marcado comprometería dinero ajeno.
+    setF((prev) => ({
+      ...prev, monto: '', monto_recibido: '', contraparte: '', descripcion: '',
+      caso_id: '', esAbono: false, nuevoPaciente: '',
+    }));
     onRegistrado();
     montoRef.current?.focus();
   };
@@ -336,11 +359,11 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
             </div>
           )}
 
-          {puedeLigarCaso && casos.length > 0 && (
+          {puedeLigarCaso && f.tipo === 'egreso' && casos.length > 0 && (
             <div style={campo('1 1 220px')}>
-              {label('¿Es de un paciente en proceso?')}
+              {label('¿Es el gasto de algún paciente?')}
               <select style={input} value={f.caso_id} onChange={(e) => set('caso_id', e.target.value)}>
-                <option value="">No — movimiento suelto</option>
+                <option value="">No — gasto suelto</option>
                 {casos.map((k) => <option key={k.id} value={k.id}>{k.paciente} — {k.servicio}</option>)}
               </select>
             </div>
@@ -352,6 +375,62 @@ function Formulario({ miembro, cuentas, categorias, casos, onRegistrado, isMobil
               placeholder={catSel?.nombre === 'Otros' ? 'Obligatoria en “Otros”: ¿en qué se gastó?' : 'Opcional'} />
           </div>
         </div>
+
+        {/* El abono se cobra con el paciente enfrente: tiene que poder
+            marcarse aquí mismo, y crear al paciente si no existe. */}
+        {f.tipo === 'ingreso' && (
+          <div style={{
+            background: f.esAbono ? '#FFF8F0' : B.white,
+            border: `1px solid ${f.esAbono ? B.orange : B.grayMd}`,
+            borderRadius: 10, padding: '12px 14px', marginBottom: 12,
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+              <input type="checkbox" checked={Boolean(f.esAbono)}
+                onChange={(e) => setF((p) => ({
+                  ...p, esAbono: e.target.checked, caso_id: '', nuevoPaciente: '',
+                }))} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: B.navy }}>
+                Es un abono de un paciente
+              </span>
+            </label>
+            {f.esAbono && (
+              <>
+                <p style={{ margin: '8px 0 10px', fontSize: 11, color: B.gray, lineHeight: 1.5 }}>
+                  El dinero entra igual a la cuenta, pero queda marcado como comprometido
+                  hasta que el paciente se opere o termine su tratamiento.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <div style={{ flex: '1 1 220px' }}>
+                    {label('¿Qué paciente?')}
+                    <select style={input} value={f.caso_id}
+                      onChange={(e) => setF((p) => ({ ...p, caso_id: e.target.value, nuevoPaciente: '' }))}>
+                      <option value="">— Paciente nuevo —</option>
+                      {casos.map((k) => (
+                        <option key={k.id} value={k.id}>{k.paciente} — {k.servicio}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {!f.caso_id && (
+                    <>
+                      <div style={{ flex: '1 1 200px' }}>
+                        {label('Nombre del paciente')}
+                        <input style={input} value={f.nuevoPaciente || ''}
+                          onChange={(e) => set('nuevoPaciente', e.target.value)} />
+                      </div>
+                      <div style={{ flex: '1 1 190px' }}>
+                        {label('Procedimiento')}
+                        <select style={input} value={f.nuevoServicio || SERVICIOS_CASO[0]}
+                          onChange={(e) => set('nuevoServicio', e.target.value)}>
+                          {SERVICIOS_CASO.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {f.tipo === 'egreso' && cuentaSel?.tipo === 'banco' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: B.navy, marginBottom: 12, cursor: 'pointer' }}>
