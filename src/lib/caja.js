@@ -155,6 +155,25 @@ export async function actualizarMovimiento(id, campos) {
   return error;
 }
 
+// Cerrar un caso libera su dinero comprometido. 'realizado' es que se
+// operó o terminó el tratamiento; 'cancelado' es que no va a pasar —
+// y como no hay devolución, el abono igual pasa a ser de la casa.
+export async function cerrarCaso(id, estado) {
+  const { error } = await supabase
+    .from('caja_casos')
+    .update({ estado, fecha_cierre: new Date().toISOString().slice(0, 10) })
+    .eq('id', id);
+  return error;
+}
+
+export async function reabrirCaso(id) {
+  const { error } = await supabase
+    .from('caja_casos')
+    .update({ estado: 'abierto', fecha_cierre: null })
+    .eq('id', id);
+  return error;
+}
+
 export async function crearCaso(caso, userId) {
   const { data, error } = await supabase
     .from('caja_casos').insert({ ...caso, creado_por: userId }).select().single();

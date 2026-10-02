@@ -4,6 +4,7 @@ import {
   getCuentas, getCategorias, getCasosAbiertos,
   getPanel, getSaldos, getMovimientos, crearMovimiento, anularMovimiento,
   liquidarCobros, getTransitoPendiente, actualizarMovimiento,
+  getResultadoCasos, crearCaso, cerrarCaso, reabrirCaso,
 } from '../lib/caja';
 
 const B = {
@@ -994,6 +995,254 @@ function EditarMovimiento({ mov, cuentas, categorias, miembro, onCerrar, onHecho
   );
 }
 
+// =====================================================================
+//  ABONOS — pacientes con dinero entregado por adelantado
+//
+//  Mientras el caso está abierto, lo abonado es dinero que está en la
+//  cuenta pero todavía no es de la casa. Al cerrarlo —se operó, o se
+//  canceló y no hay devolución— deja de estar comprometido.
+//
+//  Nada de esto afecta el flujo de caja: el abono ya entró como
+//  ingreso normal cuando se cobró. "Comprometido" solo se descuenta en
+//  la línea de "libre de verdad" del panel, para saber con cuánto se
+//  puede contar de verdad.
+// =====================================================================
+const SERVICIOS_CASO = [
+  'Cirugía bariátrica', 'Manga gástrica', 'Bypass gástrico',
+  'Balón gástrico', 'Tratamiento de cosmetología', 'Otro',
+];
+
+function Abonos({ miembro, isMobile, onAviso }) {
+  const esGerente = miembro.rol === 'gerente';
+  const [casos, setCasos] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [version, setVersion] = useState(0);
+  const [nuevo, setNuevo] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      setCargando(true);
+      setCasos(await getResultadoCasos());
+      setCargando(false);
+    })();
+  }, [version]);
+
+  const recargar = () => setVersion((v) => v + 1);
+
+  const abiertos = casos.filter((k) => k.estado === 'abierto');
+  const cerrados = casos.filter((k) => k.estado !== 'abierto');
+  const comprometido = abiertos.reduce((s, k) => s + Number(k.cobrado || 0), 0);
+
+  const crear = async () => {
+    setError(null);
+    if (!nuevo.paciente.trim()) return setError('Falta el nombre del paciente.');
+    if (!nuevo.empresa) return setError('Elige la empresa.');
+    setGuardando(true);
+    const { error: err } = await crearCaso({
+      paciente: nuevo.paciente.trim(),
+      servicio: nuevo.servicio,
+      empresa: nuevo.empresa,
+      valor_acordado: nuevo.valor ? parseFloat(String(nuevo.valor).replace(',', '.')) : null,
+    }, miembro.id);
+    setGuardando(false);
+    if (err) return setError(err.message);
+    setNuevo(null);
+    onAviso('Paciente agregado. Ahora registra su abono en Registrar.');
+    recargar();
+  };
+
+  const cerrar = async (k, estado) => {
+    const texto = estado === 'realizado'
+      ? `¿Confirmas que ${k.paciente} ya se operó o completó el tratamiento? Sus $${money(k.cobrado)} dejan de estar comprometidos.`
+      : `¿${k.paciente} canceló? Como no hay devolución, sus $${money(k.cobrado)} pasan a ser de la casa.`;
+    if (!window.confirm(texto)) return;
+    const err = await cerrarCaso(k.caso_id, estado);
+    if (err) return window.alert('No se pudo cerrar: ' + err.message);
+    onAviso(estado === 'realizado' ? 'Caso cerrado: dinero liberado' : 'Caso cancelado');
+    recargar();
+  };
+
+  const reabrir = async (k) => {
+    const err = await reabrirCaso(k.caso_id);
+    if (err) return window.alert('No se pudo reabrir: ' + err.message);
+    onAviso('Caso reabierto');
+    recargar();
+  };
+
+  const input = {
+    width: '100%', padding: isMobile ? '14px 12px' : '9px 11px', fontSize: isMobile ? 16 : 14,
+    border: `1px solid ${B.grayMd}`, borderRadius: 8, background: B.white, color: B.navy,
+    boxSizing: 'border-box',
+  };
+  const label = (t) => (
+    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>{t}</label>
+  );
+
+  if (cargando) return <p style={{ color: B.gray }}>Cargando…</p>;
+
+  return (
+    <div>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+        flexWrap: 'wrap', background: B.white, border: `1px solid ${B.grayMd}`,
+        borderRadius: 12, padding: '14px 18px', marginBottom: 16,
+      }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 10, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+            Comprometido ahora
+          </p>
+          <p style={{ margin: '2px 0 0', fontSize: 24, fontWeight: 800, color: B.orange }}>
+            $ {money(comprometido)}
+          </p>
+          <p style={{ margin: '2px 0 0', fontSize: 11, color: B.gray }}>
+            {abiertos.length} paciente{abiertos.length === 1 ? '' : 's'} con abono pendiente
+          </p>
+        </div>
+        <button onClick={() => setNuevo({ paciente: '', servicio: SERVICIOS_CASO[0], empresa: esGerente ? '' : miembro.empresa, valor: '' })}
+          style={{
+            padding: isMobile ? '14px 20px' : '11px 22px', fontSize: 14, fontWeight: 800,
+            color: B.white, background: B.navy, border: 'none', borderRadius: 8, cursor: 'pointer',
+          }}>
+          + Nuevo paciente
+        </button>
+      </div>
+
+      {nuevo && (
+        <div style={{ background: B.white, border: `1px solid ${B.blue}`, borderRadius: 12, padding: isMobile ? 16 : 18, marginBottom: 16 }}>
+          <p style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: B.navy }}>Paciente nuevo</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ flex: '1 1 220px', marginBottom: 12 }}>
+              {label('Nombre')}
+              <input autoFocus style={input} value={nuevo.paciente}
+                onChange={(e) => setNuevo({ ...nuevo, paciente: e.target.value })} />
+            </div>
+            <div style={{ flex: '1 1 200px', marginBottom: 12 }}>
+              {label('Procedimiento')}
+              <select style={input} value={nuevo.servicio}
+                onChange={(e) => setNuevo({ ...nuevo, servicio: e.target.value })}>
+                {SERVICIOS_CASO.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            {esGerente && (
+              <div style={{ flex: '0 0 150px', marginBottom: 12 }}>
+                {label('Empresa')}
+                <select style={input} value={nuevo.empresa}
+                  onChange={(e) => setNuevo({ ...nuevo, empresa: e.target.value })}>
+                  <option value="">Elegir…</option>
+                  {EMPRESAS.map((e2) => <option key={e2.value} value={e2.value}>{e2.label}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ flex: '0 0 160px', marginBottom: 12 }}>
+              {label('Valor acordado')}
+              <input inputMode="decimal" placeholder="opcional" style={input} value={nuevo.valor}
+                onChange={(e) => setNuevo({ ...nuevo, valor: e.target.value })} />
+            </div>
+          </div>
+          <p style={{ margin: '0 0 12px', fontSize: 11, color: B.gray }}>
+            El valor acordado es opcional. Si lo pones, el sistema lleva cuánto falta por cobrar.
+          </p>
+          {error && (
+            <div style={{ background: '#FDECEC', color: B.red, padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+              {error}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => { setNuevo(null); setError(null); }} style={{
+              padding: '10px 18px', fontSize: 13, fontWeight: 700, color: B.gray,
+              background: B.white, border: `1px solid ${B.grayMd}`, borderRadius: 8, cursor: 'pointer',
+            }}>Cancelar</button>
+            <button onClick={crear} disabled={guardando} style={{
+              padding: '10px 22px', fontSize: 13, fontWeight: 800, color: B.white,
+              background: guardando ? B.gray : B.navy, border: 'none', borderRadius: 8, cursor: 'pointer',
+            }}>{guardando ? 'Guardando…' : 'Agregar'}</button>
+          </div>
+        </div>
+      )}
+
+      <p style={{ fontSize: 12, fontWeight: 700, color: B.navy, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>
+        Con abono pendiente
+      </p>
+      <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden', marginBottom: 20 }}>
+        {abiertos.length === 0 && (
+          <p style={{ padding: '14px 16px', margin: 0, fontSize: 13, color: B.gray }}>
+            Ningún paciente con dinero comprometido.
+          </p>
+        )}
+        {abiertos.map((k, i) => (
+          <div key={k.caso_id} style={{
+            padding: isMobile ? '14px' : '13px 16px',
+            borderTop: i ? `1px solid ${B.grayLt}` : 'none',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: B.navy }}>{k.paciente}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: B.gray }}>
+                  {k.servicio} · {k.empresa}
+                  {k.por_cobrar != null ? ` · falta por cobrar $${money(k.por_cobrar)}` : ''}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ margin: 0, fontSize: 10, color: B.gray, textTransform: 'uppercase', letterSpacing: 0.6 }}>Abonado</p>
+                <strong style={{ fontSize: 17, color: B.orange }}>$ {money(k.cobrado)}</strong>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              <button onClick={() => cerrar(k, 'realizado')} style={{
+                padding: isMobile ? '12px 16px' : '8px 16px', fontSize: 13, fontWeight: 700,
+                color: B.white, background: B.green, border: 'none', borderRadius: 8, cursor: 'pointer',
+              }}>
+                Ya se operó / tratamiento completado
+              </button>
+              <button onClick={() => cerrar(k, 'cancelado')} style={{
+                padding: isMobile ? '12px 16px' : '8px 16px', fontSize: 13, fontWeight: 700,
+                color: B.gray, background: B.white, border: `1px solid ${B.grayMd}`, borderRadius: 8, cursor: 'pointer',
+              }}>
+                Canceló
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {cerrados.length > 0 && (
+        <>
+          <p style={{ fontSize: 12, fontWeight: 700, color: B.navy, textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 8px' }}>
+            Cerrados
+          </p>
+          <div style={{ background: B.white, borderRadius: 12, border: `1px solid ${B.grayMd}`, overflow: 'hidden' }}>
+            {cerrados.map((k, i) => (
+              <div key={k.caso_id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+                padding: '11px 16px', borderTop: i ? `1px solid ${B.grayLt}` : 'none',
+              }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 14, color: B.navy, fontWeight: 600 }}>{k.paciente}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: B.gray }}>
+                    {k.servicio} · {k.empresa} · {k.estado === 'realizado' ? 'realizado' : 'cancelado'}
+                  </p>
+                </div>
+                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 13, color: B.gray }}>cobrado $ {money(k.cobrado)}</span>
+                  {esGerente && (
+                    <button onClick={() => reabrir(k)} style={{
+                      display: 'block', marginLeft: 'auto', marginTop: 2, background: 'none',
+                      border: 'none', color: B.blue, fontSize: 11, cursor: 'pointer',
+                      textDecoration: 'underline', padding: 0,
+                    }}>reabrir</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Lista({ movimientos, todos, cuentas, categorias, miembro, onCambio, onAviso, isMobile, vacio }) {
   const esGerente = miembro.rol === 'gerente';
   const [confirmando, setConfirmando] = useState(null);
@@ -1225,6 +1474,7 @@ export default function Caja({ miembro }) {
     ...(esGerente ? [{ key: 'panel', label: 'Panel' }] : []),
     { key: 'registrar', label: 'Registrar' },
     { key: 'movimientos', label: 'Movimientos' },
+    { key: 'abonos', label: 'Abonos' },
     ...(esGerente ? [{ key: 'balance', label: 'Balance' }] : []),
   ];
 
@@ -1256,6 +1506,11 @@ export default function Caja({ miembro }) {
       {vista === 'panel' && esGerente && <Panel isMobile={isMobile} />}
 
       {vista === 'balance' && esGerente && <Balance isMobile={isMobile} />}
+
+      {vista === 'abonos' && (
+        <Abonos miembro={miembro} isMobile={isMobile}
+          onAviso={(t) => { avisar(t); recargar(); }} />
+      )}
 
       {vista === 'registrar' && (
         <Formulario
