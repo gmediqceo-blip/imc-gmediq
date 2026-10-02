@@ -893,10 +893,14 @@ function ConfirmarDeposito({ cobro, todos, cuentas, onCerrar, onHecho, isMobile 
 //  cargarlo todo. Para un monto mal tecleado o una empresa equivocada,
 //  corregir es lo natural; anular es para lo que no debió existir.
 // =====================================================================
-function EditarMovimiento({ mov, cuentas, categorias, miembro, onCerrar, onHecho, isMobile }) {
+function EditarMovimiento({ mov, cuentas, categorias, casos, miembro, onCerrar, onHecho, isMobile }) {
   const esGerente = miembro.rol === 'gerente';
   const esTraslado = mov.tipo === 'traslado';
   const [f, setF] = useState({
+    caso_id: mov.caso_id || '',
+    esAbono: Boolean(mov.caso_id) && mov.tipo === 'ingreso',
+    nuevoPaciente: '',
+    nuevoServicio: SERVICIOS_CASO[0],
     fecha: mov.fecha,
     monto: String(mov.monto),
     monto_recibido: mov.monto_recibido != null ? String(mov.monto_recibido) : '',
@@ -931,8 +935,30 @@ function EditarMovimiento({ mov, cuentas, categorias, miembro, onCerrar, onHecho
       if (!f.empresa) return setError('Elige la empresa.');
     }
 
+    // Igual que al registrar: si se marca como abono de alguien que
+    // todavía no existe, primero nace el paciente.
+    let casoFinal = f.caso_id || null;
+    if (mov.tipo === 'ingreso') {
+      if (!f.esAbono) {
+        casoFinal = null;
+      } else if (!casoFinal) {
+        if (!String(f.nuevoPaciente || '').trim()) {
+          return setError('Escribe el nombre del paciente, o elígelo de la lista.');
+        }
+        setGuardando(true);
+        const { data: creado, error: errCaso } = await crearCaso({
+          paciente: String(f.nuevoPaciente).trim(),
+          servicio: f.nuevoServicio || SERVICIOS_CASO[0],
+          empresa: f.empresa,
+        }, miembro.id);
+        if (errCaso) { setGuardando(false); return setError(errCaso.message); }
+        casoFinal = creado.id;
+      }
+    }
+
     setGuardando(true);
     const err = await actualizarMovimiento(mov.id, {
+      caso_id: esTraslado ? null : casoFinal,
       fecha: f.fecha,
       monto,
       monto_recibido: esTraslado ? num(f.monto_recibido) : null,
@@ -1040,6 +1066,62 @@ function EditarMovimiento({ mov, cuentas, categorias, miembro, onCerrar, onHecho
             <input style={input} value={f.descripcion} onChange={(e) => set('descripcion', e.target.value)} />
           </div>
         </div>
+
+        {mov.tipo === 'ingreso' && (
+          <div style={{
+            background: f.esAbono ? '#FFF8F0' : B.white,
+            border: `1px solid ${f.esAbono ? B.orange : B.grayMd}`,
+            borderRadius: 10, padding: '12px 14px', marginBottom: 12,
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}>
+              <input type="checkbox" checked={Boolean(f.esAbono)}
+                onChange={(e) => setF((p) => ({ ...p, esAbono: e.target.checked, caso_id: '', nuevoPaciente: '' }))} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: B.navy }}>
+                Es un abono de un paciente
+              </span>
+            </label>
+            {f.esAbono && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                <div style={{ flex: '1 1 210px' }}>
+                  {label('¿Qué paciente?')}
+                  <select style={input} value={f.caso_id}
+                    onChange={(e) => setF((p) => ({ ...p, caso_id: e.target.value, nuevoPaciente: '' }))}>
+                    <option value="">— Paciente nuevo —</option>
+                    {(casos || []).map((k) => (
+                      <option key={k.id} value={k.id}>{k.paciente} — {k.servicio}</option>
+                    ))}
+                  </select>
+                </div>
+                {!f.caso_id && (
+                  <>
+                    <div style={{ flex: '1 1 190px' }}>
+                      {label('Nombre del paciente')}
+                      <input style={input} value={f.nuevoPaciente || ''}
+                        onChange={(e) => set('nuevoPaciente', e.target.value)} />
+                    </div>
+                    <div style={{ flex: '1 1 180px' }}>
+                      {label('Procedimiento')}
+                      <select style={input} value={f.nuevoServicio}
+                        onChange={(e) => set('nuevoServicio', e.target.value)}>
+                        {SERVICIOS_CASO.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {mov.tipo === 'egreso' && casos && casos.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            {label('¿Es el gasto de algún paciente?')}
+            <select style={input} value={f.caso_id} onChange={(e) => set('caso_id', e.target.value)}>
+              <option value="">No — gasto suelto</option>
+              {casos.map((k) => <option key={k.id} value={k.id}>{k.paciente} — {k.servicio}</option>)}
+            </select>
+          </div>
+        )}
 
         {mov.tipo === 'egreso' && cuentaSel?.tipo === 'banco' && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: B.navy, marginBottom: 12, cursor: 'pointer' }}>
@@ -1322,7 +1404,7 @@ function Abonos({ miembro, isMobile, onAviso }) {
   );
 }
 
-function Lista({ movimientos, todos, cuentas, categorias, miembro, onCambio, onAviso, isMobile, vacio }) {
+function Lista({ movimientos, todos, cuentas, categorias, casos, miembro, onCambio, onAviso, isMobile, vacio }) {
   const esGerente = miembro.rol === 'gerente';
   const [confirmando, setConfirmando] = useState(null);
   const [editando, setEditando] = useState(null);
@@ -1471,6 +1553,7 @@ function Lista({ movimientos, todos, cuentas, categorias, miembro, onCambio, onA
         mov={editando}
         cuentas={cuentas}
         categorias={categorias}
+        casos={casos}
         miembro={miembro}
         isMobile={isMobile}
         onCerrar={() => setEditando(null)}
@@ -1680,7 +1763,7 @@ export default function Caja({ miembro }) {
               <p style={{ color: B.gray, fontSize: 14 }}>Cargando movimientos…</p>
             ) : (
               <Lista
-                movimientos={lista} todos={pendientes} cuentas={cuentas} categorias={categorias}
+                movimientos={lista} todos={pendientes} cuentas={cuentas} categorias={categorias} casos={casos}
                 miembro={miembro} onCambio={recargar} onAviso={avisar} isMobile={isMobile}
                 vacio={porFechas
                   ? 'No hay movimientos en esas fechas.'
